@@ -7,6 +7,7 @@ export type Program = {
   duration: string;
   tag: "Breathwork" | "Meditation" | "Yoga" | "Sound" | "Retreat";
   location: string;
+  imageUrl?: string;
   summary: string;
   description: string;
   highlights: string[];

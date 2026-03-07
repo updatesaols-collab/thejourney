@@ -12,6 +12,7 @@ export type ProgramRecord = {
   duration: string;
   tag: ProgramTag;
   location: string;
+  imageUrl?: string;
   summary: string;
   description: string;
   highlights: string[];

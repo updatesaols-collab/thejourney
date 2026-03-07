@@ -79,17 +79,26 @@ export default function ExplorePage() {
                   key={`${program.title}-${program.date}`}
                   className="program-card surface"
                 >
-                  <div className="program-card__main">
-                    <p className="program-card__title">{program.title}</p>
-                    <div className="program-card__meta">
-                      <span>
-                        <CalendarDays size={14} />
-                        {program.date} · {program.time}
-                      </span>
-                      <span>
-                        <MapPin size={14} />
-                        {program.location}
-                      </span>
+                  <div className="program-card__content">
+                    <div className="program-card__media">
+                      {program.imageUrl ? (
+                        <img src={program.imageUrl} alt={program.title} loading="lazy" />
+                      ) : (
+                        <div className="program-card__media-placeholder" />
+                      )}
+                    </div>
+                    <div className="program-card__main">
+                      <p className="program-card__title">{program.title}</p>
+                      <div className="program-card__meta">
+                        <span>
+                          <CalendarDays size={14} />
+                          {program.date} · {program.time}
+                        </span>
+                        <span>
+                          <MapPin size={14} />
+                          {program.location}
+                        </span>
+                      </div>
                     </div>
                   </div>
                   <div className="program-card__aside">

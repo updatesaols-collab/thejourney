@@ -2,6 +2,15 @@
 
 export const getOrCreateUserId = () => {
   if (typeof window === "undefined") return "server-user";
+  const sessionRaw = localStorage.getItem("journey_auth_session");
+  if (sessionRaw) {
+    try {
+      const session = JSON.parse(sessionRaw) as { email?: string };
+      if (session?.email && session.email.trim()) {
+        return session.email.trim().toLowerCase();
+      }
+    } catch {}
+  }
   const key = "journey_user_id";
   const existing = localStorage.getItem(key);
   if (existing) return existing;

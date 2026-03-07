@@ -14,6 +14,7 @@ type ProgramDocument = {
   duration: string;
   tag: ProgramTag;
   location: string;
+  imageUrl?: string;
   summary: string;
   description: string;
   highlights: string[];
@@ -36,6 +37,7 @@ const normalizeProgram = (doc: ProgramDocument & { _id: { toString(): string } }
   duration: doc.duration,
   tag: doc.tag,
   location: doc.location,
+  imageUrl: doc.imageUrl || "",
   summary: doc.summary || "",
   description: doc.description || "",
   highlights: doc.highlights ?? [],
@@ -49,6 +51,7 @@ const seedPrograms = (): ProgramDocument[] => {
   return PROGRAMS.map((program) => ({
     ...program,
     slug: program.slug || slugify(program.title),
+    imageUrl: program.imageUrl || "",
     facilitator: program.facilitator || "Journey Guides",
     seats: Number.isFinite(program.seats) ? program.seats : 24,
     status: program.status || "Open",
@@ -124,6 +127,7 @@ export const createProgram = async (payload: Partial<ProgramRecord>) => {
     duration: payload.duration || "",
     tag: (payload.tag as ProgramTag) || "Meditation",
     location: payload.location || "Live · Main Hall",
+    imageUrl: payload.imageUrl?.trim() || "",
     summary:
       payload.summary ||
       "A guided session designed to support calm, clarity, and inner renewal.",
@@ -160,6 +164,9 @@ export const updateProgram = async (slug: string, payload: Partial<ProgramRecord
   if (payload.duration !== undefined) updates.duration = payload.duration;
   if (payload.tag !== undefined) updates.tag = payload.tag as ProgramTag;
   if (payload.location !== undefined) updates.location = payload.location;
+  if (payload.imageUrl !== undefined) {
+    updates.imageUrl = payload.imageUrl.trim();
+  }
   if (payload.summary !== undefined) updates.summary = payload.summary;
   if (payload.description !== undefined) updates.description = payload.description;
   if (payload.highlights !== undefined) updates.highlights = payload.highlights;

@@ -15,6 +15,9 @@ export default function ProgramsPage() {
   const [facilitatorFilter, setFacilitatorFilter] = useState("All");
   const [tagFilter, setTagFilter] = useState("All");
   const [exportScope, setExportScope] = useState("filtered");
+  const [imageStatus, setImageStatus] = useState("");
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState("");
 
   const [modalOpen, setModalOpen] = useState(false);
   const [mode, setMode] = useState<"add" | "edit">("add");
@@ -29,6 +32,7 @@ export default function ProgramsPage() {
     duration: "",
     tag: "Meditation",
     location: "",
+    imageUrl: "",
     summary: "",
     description: "",
     highlights: [],
@@ -38,6 +42,7 @@ export default function ProgramsPage() {
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const loadPrograms = async () => {
@@ -81,6 +86,8 @@ export default function ProgramsPage() {
   const openModal = (nextMode: "add" | "edit", item?: ProgramRecord) => {
     setMode(nextMode);
     setEditingSlug(item?.slug || "");
+    setImageStatus("");
+    setSubmitStatus("");
     setForm(
       item ?? {
         id: "",
@@ -92,6 +99,7 @@ export default function ProgramsPage() {
         duration: "",
         tag: "Meditation",
         location: "",
+        imageUrl: "",
         summary: "",
         description: "",
         highlights: [],
@@ -105,6 +113,7 @@ export default function ProgramsPage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    setSubmitStatus("");
     try {
       if (mode === "add") {
         const res = await fetch("/api/programs", {
@@ -116,6 +125,9 @@ export default function ProgramsPage() {
           const created = (await res.json()) as ProgramRecord;
           setPrograms((prev) => [created, ...prev]);
           setModalOpen(false);
+          setSubmitStatus("Program added.");
+        } else {
+          setSubmitStatus("Unable to add program.");
         }
       } else if (editingSlug) {
         const res = await fetch(`/api/programs/${editingSlug}`, {
@@ -129,9 +141,14 @@ export default function ProgramsPage() {
             prev.map((item) => (item.id === updated.id ? updated : item))
           );
           setModalOpen(false);
+          setSubmitStatus("Changes saved.");
+        } else {
+          setSubmitStatus("Unable to save changes.");
         }
       }
-    } catch {}
+    } catch {
+      setSubmitStatus("Something went wrong. Try again.");
+    }
   };
 
   const handleDelete = async (item: ProgramRecord) => {
@@ -154,6 +171,7 @@ export default function ProgramsPage() {
       "duration",
       "tag",
       "location",
+      "imageUrl",
       "summary",
       "description",
       "highlights",
@@ -176,6 +194,7 @@ export default function ProgramsPage() {
       duration: row.duration || "",
       tag: (row.tag as ProgramRecord["tag"]) || "Meditation",
       location: row.location || "",
+      imageUrl: row.imageUrl || row.image || "",
       summary: row.summary || "",
       description: row.description || "",
       highlights: row.highlights
@@ -197,6 +216,72 @@ export default function ProgramsPage() {
       }
     } catch {}
     event.target.value = "";
+  };
+
+  const handleImageUpload = async (file?: File) => {
+    if (!file) return;
+    setIsUploadingImage(true);
+    setImageStatus("");
+    try {
+      const signRes = await fetch("/api/cloudinary/sign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folder: "the-journey/programs" }),
+      });
+
+      if (!signRes.ok) {
+        const data = await signRes.json().catch(() => ({ message: "" }));
+        setImageStatus(data.message || "Upload unavailable.");
+        return;
+      }
+
+      const data = (await signRes.json()) as {
+        cloudName: string;
+        apiKey: string;
+        timestamp: number;
+        signature: string;
+        folder: string;
+      };
+
+      const body = new FormData();
+      body.append("file", file);
+      body.append("api_key", data.apiKey);
+      body.append("timestamp", String(data.timestamp));
+      body.append("signature", data.signature);
+      body.append("folder", data.folder);
+
+      const uploadRes = await fetch(
+        `https://api.cloudinary.com/v1_1/${data.cloudName}/image/upload`,
+        {
+          method: "POST",
+          body,
+        }
+      );
+
+      if (!uploadRes.ok) {
+        setImageStatus("Upload failed. Try again.");
+        return;
+      }
+
+      const uploadData = (await uploadRes.json()) as {
+        secure_url?: string;
+        url?: string;
+      };
+      const imageUrl = uploadData.secure_url || uploadData.url || "";
+      if (imageUrl) {
+        setForm((prev) => ({ ...prev, imageUrl }));
+        setImageStatus("Image uploaded.");
+      } else {
+        setImageStatus("Upload failed. Try again.");
+      }
+    } catch {
+      setImageStatus("Upload failed. Try again.");
+    } finally {
+      setIsUploadingImage(false);
+      if (imageInputRef.current) {
+        imageInputRef.current.value = "";
+      }
+    }
   };
 
   return (
@@ -292,12 +377,26 @@ export default function ProgramsPage() {
         <div className="admin__programs">
           {filteredPrograms.map((program) => (
             <div key={program.id} className="admin__program-card">
-              <div>
-                <h3>{program.title}</h3>
-                <p>
-                  {program.day} · {program.date} · {program.time} · {program.duration}
-                </p>
-                <span>{program.facilitator}</span>
+              <div className="admin__program-main">
+                {program.imageUrl ? (
+                  <img
+                    className="admin__program-thumb"
+                    src={program.imageUrl}
+                    alt={`${program.title} cover`}
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="admin__program-thumb admin__program-thumb--empty">
+                    No image
+                  </div>
+                )}
+                <div>
+                  <h3>{program.title}</h3>
+                  <p>
+                    {program.day} · {program.date} · {program.time} · {program.duration}
+                  </p>
+                  <span>{program.facilitator}</span>
+                </div>
               </div>
               <div className="admin__program-meta">
                 <span>{program.seats} seats</span>
@@ -405,6 +504,28 @@ export default function ProgramsPage() {
                 />
               </label>
               <label>
+                Program image
+                <div className="admin__upload-row">
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) =>
+                      handleImageUpload(event.target.files?.[0])
+                    }
+                  />
+                  {isUploadingImage && <span className="admin__hint">Uploading...</span>}
+                  {imageStatus && <span className="admin__hint">{imageStatus}</span>}
+                </div>
+                {form.imageUrl && (
+                  <img
+                    className="admin__image-preview"
+                    src={form.imageUrl}
+                    alt="Program preview"
+                  />
+                )}
+              </label>
+              <label>
                 Summary
                 <textarea
                   rows={3}
@@ -474,9 +595,10 @@ export default function ProgramsPage() {
                   <option value="Closed">Closed</option>
                 </select>
               </label>
-              <button className="admin__button" type="submit">
+              <button className="admin__button" type="submit" disabled={isUploadingImage}>
                 {mode === "add" ? "Add program" : "Save changes"}
               </button>
+              {submitStatus && <p className="admin__hint">{submitStatus}</p>}
             </form>
           </div>
         </div>

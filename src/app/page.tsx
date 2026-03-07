@@ -1,19 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
+  Bell,
+  ChevronDown,
   Flame,
   Heart,
   Leaf,
+  MapPin,
   PlayCircle,
+  Search,
   Sparkles,
   Wind,
 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
-import TopBar from "@/components/TopBar";
 import type { ProgramRecord } from "@/lib/types";
 import { getOrCreateUserId } from "@/lib/clientUser";
+
+const AUTH_SESSION_KEY = "journey_auth_session";
 
 export default function Home() {
   const [greeting, setGreeting] = useState("Welcome");
@@ -46,6 +52,14 @@ export default function Home() {
     }
   };
 
+  const categories = [
+    { label: "Breathwork", icon: Wind },
+    { label: "Meditation", icon: Sparkles },
+    { label: "Yoga", icon: Heart },
+    { label: "Sound", icon: Flame },
+    { label: "Retreat", icon: Leaf },
+  ];
+
   useEffect(() => {
     const getGreeting = () => {
       const hour = new Date().getHours();
@@ -55,28 +69,15 @@ export default function Home() {
       return "Good night";
     };
 
-    const getStoredName = () => {
-      const directName = localStorage.getItem("journey_profile_name");
-      if (directName && directName.trim()) return directName.trim();
-
-      const profileRaw = localStorage.getItem("journey_profile");
-      if (profileRaw) {
-        try {
-          const parsed = JSON.parse(profileRaw) as { name?: string };
-          if (parsed?.name && parsed.name.trim()) {
-            return parsed.name.trim();
-          }
-        } catch {}
-      }
-
-      return "Seeker";
-    };
-
-    const userId = getOrCreateUserId();
+    const sessionRaw =
+      typeof window !== "undefined" ? localStorage.getItem(AUTH_SESSION_KEY) : null;
+    const isLoggedIn = Boolean(sessionRaw);
     setGreeting(getGreeting());
-    setDisplayName(getStoredName());
+    setDisplayName("Seeker");
 
     const loadProfile = async () => {
+      if (!isLoggedIn) return;
+      const userId = getOrCreateUserId();
       try {
         const res = await fetch(`/api/profile?userId=${userId}`);
         if (!res.ok) return;
@@ -89,7 +90,7 @@ export default function Home() {
 
     const loadPrograms = async () => {
       try {
-        const res = await fetch("/api/programs?limit=3");
+        const res = await fetch("/api/programs?limit=4");
         if (!res.ok) return;
         const data = (await res.json()) as ProgramRecord[];
         setPrograms(data);
@@ -148,19 +149,49 @@ export default function Home() {
   return (
     <div className="page">
       <main className="phone">
-        <TopBar title="The Art of Living" />
-
         <div className="content">
-          <section className="hero surface">
-            <div className="hero__content">
+          <header className="home-header">
+            <div className="location">
+              <span className="location__label">
+                <MapPin size={14} />
+                Your journey
+              </span>
+              <button className="location__value" type="button">
+                The Art of Living
+                <ChevronDown size={16} />
+              </button>
+            </div>
+            <div className="icon-row">
+              <button className="icon-button icon-button--soft" aria-label="Notifications">
+                <Bell size={18} />
+              </button>
+              <span className="topbar__logo" aria-hidden="true">
+                <Image
+                  src="/artofliving.png"
+                  alt="Art of Living logo"
+                  width={36}
+                  height={36}
+                  priority
+                />
+              </span>
+            </div>
+          </header>
+
+          <section className="home-search surface">
+            <Search size={18} />
+            <input placeholder="Search for a program..." aria-label="Search programs" />
+          </section>
+
+          <section className="home-banner surface">
+            <div className="home-banner__content">
               <span className="eyebrow">
                 {greeting}, {displayName}
               </span>
-            <h1>Start your journey to inner peace</h1>
-            <p>
-              Join programs led by expert facilitators to calm your mind,
-              rejuvenate your body, and nurture your spirit.
-            </p>
+              <h1>Start your journey to inner peace</h1>
+              <p>
+                Join programs led by expert facilitators to calm your mind,
+                rejuvenate your body, and nurture your spirit.
+              </p>
               <div className="hero__actions">
                 <button className="button button--primary">
                   <PlayCircle size={18} />
@@ -171,42 +202,83 @@ export default function Home() {
                 </Link>
               </div>
             </div>
-        </section>
+            <div className="home-banner__art">
+              <div className="home-banner__orb" />
+              <div className="home-banner__card">
+                <Sparkles size={20} />
+                <div>
+                  <p>Daily reset</p>
+                  <span>10 min · Guided</span>
+                </div>
+              </div>
+            </div>
+          </section>
 
-        
+          <section className="section">
+            <div className="section__head">
+              <h2>Program categories</h2>
+              <Link className="link" href="/explore">
+                View all
+              </Link>
+            </div>
+            <div className="category-grid">
+              {categories.map((category) => {
+                const Icon = category.icon;
+                return (
+                  <div key={category.label} className="category-card surface">
+                    <span className="category-card__icon">
+                      <Icon size={18} />
+                    </span>
+                    <span className="category-card__label">{category.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
 
           <section className="section">
             <div className="section__head">
               <h2>Upcoming programs</h2>
               <Link className="link" href="/explore">
-                See all
+                View all
               </Link>
             </div>
-            <div className="program-list">
-              {programs.map((program) => (
-                <article key={program.slug} className="program-row surface">
-                  <div className="program-row__icon">
-                    {(() => {
-                      const Icon = programIcon(program.tag);
-                      return <Icon size={18} />;
-                    })()}
-                  </div>
-                  <div className="program-row__main">
-                    <p className="list-title">{program.title}</p>
-                    <p className="list-meta">{program.duration}</p>
-                  </div>
-                  <div className="program-row__time">
-                    <span>{program.day} · {program.date}</span>
-                    <span>{program.time}</span>
-                  </div>
-                  <Link
-                    className="mini-button program-row__cta"
-                    href={`/programs/${program.slug}`}
-                  >
-                    View more
-                  </Link>
-                </article>
-              ))}
+            <div className="popular-grid">
+              {programs.map((program) => {
+                const Icon = programIcon(program.tag);
+                return (
+                  <article key={program.slug} className="popular-card surface">
+                    <div className="popular-card__media">
+                      {program.imageUrl ? (
+                        <img
+                          className="popular-card__image"
+                          src={program.imageUrl}
+                          alt={program.title}
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="popular-card__icon">
+                          <Icon size={20} />
+                        </div>
+                      )}
+                      <span className="tag">{program.tag}</span>
+                    </div>
+                    <div className="popular-card__body">
+                      <p className="popular-card__title">{program.title}</p>
+                      <p className="popular-card__meta">
+                        {program.day} · {program.date} · {program.time}
+                      </p>
+                      <p className="popular-card__summary">{program.summary}</p>
+                      <div className="popular-card__footer">
+                        <span className="popular-card__duration">{program.duration}</span>
+                        <Link className="mini-button" href={`/programs/${program.slug}`}>
+                          View details
+                        </Link>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           </section>
 
