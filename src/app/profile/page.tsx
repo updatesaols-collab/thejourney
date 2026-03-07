@@ -48,6 +48,12 @@ export default function ProfilePage() {
   const [securityStatus, setSecurityStatus] = useState("");
   const [registrations, setRegistrations] = useState<RegistrationRecord[]>([]);
   const isLoggedIn = Boolean(authSession?.email);
+  const isProfileComplete = Boolean(
+    profile.fullName.trim() &&
+      profile.phone.trim() &&
+      profile.address.trim() &&
+      profile.dob.trim()
+  );
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -125,6 +131,15 @@ export default function ProfilePage() {
       setLoginEmail(profile.email);
     }
   }, [authSession, loginEmail, profile.email]);
+
+  useEffect(() => {
+    if (authSession?.email) {
+      setProfile((prev) => ({
+        ...prev,
+        email: authSession.email,
+      }));
+    }
+  }, [authSession?.email]);
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -277,7 +292,13 @@ export default function ProfilePage() {
     if (!isLoggedIn) return;
     const userId = getOrCreateUserId();
     const trimmed = profile.fullName.trim();
-    const payload = { ...profile, fullName: trimmed, userId, settings };
+    const payload = {
+      ...profile,
+      email: authSession?.email || profile.email,
+      fullName: trimmed,
+      userId,
+      settings,
+    };
 
     try {
       const res = await fetch("/api/profile", {
@@ -504,15 +525,20 @@ export default function ProfilePage() {
                   <h2>Personal details</h2>
                 </div>
                 <div className="surface profile-card">
-                  <div className="profile-header">
-                    <div>
-                      <p className="list-title">Profile information</p>
-                      <p className="list-meta">Currently: {savedName}</p>
-                    </div>
-                    <button className="button button--primary" onClick={handleProfileSave}>
-                      Update profile
-                    </button>
-                  </div>
+              <div className="profile-header">
+                <div>
+                  <p className="list-title">Profile information</p>
+                  <p className="list-meta">Currently: {savedName}</p>
+                  {!isProfileComplete && (
+                    <p className="list-meta">
+                      Complete your profile to personalize reminders and resources.
+                    </p>
+                  )}
+                </div>
+                <button className="button button--primary" onClick={handleProfileSave}>
+                  Update profile
+                </button>
+              </div>
 
                   <div className="profile-grid">
                     <label>
@@ -526,18 +552,16 @@ export default function ProfilePage() {
                         placeholder="Enter your full name"
                       />
                     </label>
-                    <label>
-                      Email
-                      <input
-                        className="text-input"
-                        value={profile.email}
-                        onChange={(event) =>
-                          setProfile({ ...profile, email: event.target.value })
-                        }
-                        placeholder="Enter your email"
-                        type="email"
-                      />
-                    </label>
+                <label>
+                  Email
+                  <input
+                    className="text-input"
+                    value={profile.email}
+                    placeholder="Enter your email"
+                    type="email"
+                    disabled
+                  />
+                </label>
                     <label>
                       Phone
                       <input

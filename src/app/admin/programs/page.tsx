@@ -17,7 +17,10 @@ export default function ProgramsPage() {
   const [exportScope, setExportScope] = useState("filtered");
   const [imageStatus, setImageStatus] = useState("");
   const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState("");
+  const [pageStatus, setPageStatus] = useState<{
+    tone: "success" | "error";
+    message: string;
+  } | null>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [mode, setMode] = useState<"add" | "edit">("add");
@@ -87,7 +90,6 @@ export default function ProgramsPage() {
     setMode(nextMode);
     setEditingSlug(item?.slug || "");
     setImageStatus("");
-    setSubmitStatus("");
     setForm(
       item ?? {
         id: "",
@@ -113,7 +115,6 @@ export default function ProgramsPage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    setSubmitStatus("");
     try {
       if (mode === "add") {
         const res = await fetch("/api/programs", {
@@ -125,9 +126,9 @@ export default function ProgramsPage() {
           const created = (await res.json()) as ProgramRecord;
           setPrograms((prev) => [created, ...prev]);
           setModalOpen(false);
-          setSubmitStatus("Program added.");
+          setPageStatus({ tone: "success", message: "Program added." });
         } else {
-          setSubmitStatus("Unable to add program.");
+          setPageStatus({ tone: "error", message: "Unable to add program." });
         }
       } else if (editingSlug) {
         const res = await fetch(`/api/programs/${editingSlug}`, {
@@ -141,13 +142,13 @@ export default function ProgramsPage() {
             prev.map((item) => (item.id === updated.id ? updated : item))
           );
           setModalOpen(false);
-          setSubmitStatus("Changes saved.");
+          setPageStatus({ tone: "success", message: "Changes saved." });
         } else {
-          setSubmitStatus("Unable to save changes.");
+          setPageStatus({ tone: "error", message: "Unable to save changes." });
         }
       }
     } catch {
-      setSubmitStatus("Something went wrong. Try again.");
+      setPageStatus({ tone: "error", message: "Something went wrong. Try again." });
     }
   };
 
@@ -157,8 +158,13 @@ export default function ProgramsPage() {
       const res = await fetch(`/api/programs/${item.slug}`, { method: "DELETE" });
       if (res.ok) {
         setPrograms((prev) => prev.filter((program) => program.id !== item.id));
+        setPageStatus({ tone: "success", message: "Program deleted." });
+      } else {
+        setPageStatus({ tone: "error", message: "Unable to delete program." });
       }
-    } catch {}
+    } catch {
+      setPageStatus({ tone: "error", message: "Unable to delete program." });
+    }
   };
 
   const handleExport = () => {
@@ -213,8 +219,13 @@ export default function ProgramsPage() {
       if (res.ok) {
         const created = (await res.json()) as ProgramRecord[];
         setPrograms((prev) => [...created, ...prev]);
+        setPageStatus({ tone: "success", message: "Programs imported." });
+      } else {
+        setPageStatus({ tone: "error", message: "Unable to import programs." });
       }
-    } catch {}
+    } catch {
+      setPageStatus({ tone: "error", message: "Unable to import programs." });
+    }
     event.target.value = "";
   };
 
@@ -366,6 +377,11 @@ export default function ProgramsPage() {
           </button>
         </div>
       </section>
+      {pageStatus && (
+        <div className={`admin__status admin__status--${pageStatus.tone}`}>
+          {pageStatus.message}
+        </div>
+      )}
 
       <section className="admin__panel">
         <div className="admin__panel-head">
@@ -598,7 +614,6 @@ export default function ProgramsPage() {
               <button className="admin__button" type="submit" disabled={isUploadingImage}>
                 {mode === "add" ? "Add program" : "Save changes"}
               </button>
-              {submitStatus && <p className="admin__hint">{submitStatus}</p>}
             </form>
           </div>
         </div>

@@ -202,16 +202,6 @@ export default function Home() {
                 </Link>
               </div>
             </div>
-            <div className="home-banner__art">
-              <div className="home-banner__orb" />
-              <div className="home-banner__card">
-                <Sparkles size={20} />
-                <div>
-                  <p>Daily reset</p>
-                  <span>10 min · Guided</span>
-                </div>
-              </div>
-            </div>
           </section>
 
           <section className="section">

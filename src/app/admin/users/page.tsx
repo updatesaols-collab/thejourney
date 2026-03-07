@@ -20,6 +20,10 @@ export default function UsersPage() {
   const [emailFilter, setEmailFilter] = useState("All");
   const [smsFilter, setSmsFilter] = useState("All");
   const [digestFilter, setDigestFilter] = useState("All");
+  const [pageStatus, setPageStatus] = useState<{
+    tone: "success" | "error";
+    message: string;
+  } | null>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<ProfileRecord | null>(null);
@@ -76,6 +80,7 @@ export default function UsersPage() {
   }, [normalizedProfiles, query, emailFilter, smsFilter, digestFilter]);
 
   const openModal = (profile: ProfileRecord) => {
+    setPageStatus(null);
     setForm({
       ...profile,
       settings: profile.settings || defaultSettings,
@@ -107,8 +112,13 @@ export default function UsersPage() {
           prev.map((item) => (item.userId === updated.userId ? updated : item))
         );
         setModalOpen(false);
+        setPageStatus({ tone: "success", message: "Changes saved." });
+      } else {
+        setPageStatus({ tone: "error", message: "Unable to save changes." });
       }
-    } catch {}
+    } catch {
+      setPageStatus({ tone: "error", message: "Unable to save changes." });
+    }
   };
 
   const handleExport = () => {
@@ -196,6 +206,11 @@ export default function UsersPage() {
           </button>
         </div>
       </section>
+      {pageStatus && (
+        <div className={`admin__status admin__status--${pageStatus.tone}`}>
+          {pageStatus.message}
+        </div>
+      )}
 
       <section className="admin__panel">
         <div className="admin__panel-head">

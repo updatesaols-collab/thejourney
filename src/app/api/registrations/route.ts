@@ -146,12 +146,16 @@ export async function PATCH(request: NextRequest) {
   if (!payload.id) {
     return NextResponse.json({ message: "Missing id" }, { status: 400 });
   }
-  if (!ObjectId.isValid(payload.id)) {
-    return NextResponse.json({ message: "Invalid id" }, { status: 400 });
-  }
   const db = await getDb();
   const collection = db.collection<RegistrationDocument>("registrations");
-  const id = new ObjectId(payload.id);
+  const idValue = String(payload.id).trim();
+  const isObjectId = ObjectId.isValid(idValue);
+  const filters: Record<string, unknown>[] = [];
+  if (isObjectId) {
+    filters.push({ _id: new ObjectId(idValue) });
+  }
+  filters.push({ _id: idValue });
+  filters.push({ id: idValue });
 
   const updates: Partial<RegistrationDocument> = {};
   if (payload.fullName !== undefined) updates.fullName = payload.fullName;
@@ -170,13 +174,18 @@ export async function PATCH(request: NextRequest) {
   if (payload.programTag !== undefined) updates.programTag = payload.programTag;
   if (payload.status !== undefined) updates.status = payload.status;
 
+  const existing = await collection.findOne({ $or: filters });
+  if (!existing || !existing._id) {
+    return NextResponse.json({ message: "Registration not found" }, { status: 404 });
+  }
+
   const result = await collection.findOneAndUpdate(
-    { _id: id },
+    { _id: existing._id },
     { $set: updates },
     { returnDocument: "after" }
   );
 
-  if (!result.value) {
+  if (!result || !result.value) {
     return NextResponse.json({ message: "Registration not found" }, { status: 404 });
   }
 
@@ -190,12 +199,23 @@ export async function DELETE(request: NextRequest) {
   if (!payload.id) {
     return NextResponse.json({ message: "Missing id" }, { status: 400 });
   }
-  if (!ObjectId.isValid(payload.id)) {
-    return NextResponse.json({ message: "Invalid id" }, { status: 400 });
-  }
   const db = await getDb();
   const collection = db.collection<RegistrationDocument>("registrations");
-  const result = await collection.deleteOne({ _id: new ObjectId(payload.id) });
+  const idValue = String(payload.id).trim();
+  const isObjectId = ObjectId.isValid(idValue);
+  const filters: Record<string, unknown>[] = [];
+  if (isObjectId) {
+    filters.push({ _id: new ObjectId(idValue) });
+  }
+  filters.push({ _id: idValue });
+  filters.push({ id: idValue });
+
+  const existing = await collection.findOne({ $or: filters });
+  if (!existing || !existing._id) {
+    return NextResponse.json({ message: "Registration not found" }, { status: 404 });
+  }
+
+  const result = await collection.deleteOne({ _id: existing._id });
   if (!result.deletedCount) {
     return NextResponse.json({ message: "Registration not found" }, { status: 404 });
   }

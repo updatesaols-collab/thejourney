@@ -16,6 +16,10 @@ export default function RegistrationsPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [exportScope, setExportScope] = useState("filtered");
+  const [pageStatus, setPageStatus] = useState<{
+    tone: "success" | "error";
+    message: string;
+  } | null>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [mode, setMode] = useState<"add" | "edit">("add");
@@ -76,6 +80,7 @@ export default function RegistrationsPage() {
 
   const openModal = (nextMode: "add" | "edit", item?: RegistrationRecord) => {
     setMode(nextMode);
+    setPageStatus(null);
     setForm(
       item ?? {
         id: "",
@@ -102,6 +107,13 @@ export default function RegistrationsPage() {
           const created = (await res.json()) as RegistrationRecord;
           setRegistrations((prev) => [created, ...prev]);
           setModalOpen(false);
+          setPageStatus({ tone: "success", message: "Registration added." });
+        } else {
+          const data = await res.json().catch(() => ({ message: "" }));
+          setPageStatus({
+            tone: "error",
+            message: data.message || "Unable to add registration.",
+          });
         }
       } else {
         const res = await fetch("/api/registrations", {
@@ -115,9 +127,18 @@ export default function RegistrationsPage() {
             prev.map((item) => (item.id === updated.id ? updated : item))
           );
           setModalOpen(false);
+          setPageStatus({ tone: "success", message: "Changes saved." });
+        } else {
+          const data = await res.json().catch(() => ({ message: "" }));
+          setPageStatus({
+            tone: "error",
+            message: data.message || "Unable to save changes.",
+          });
         }
       }
-    } catch {}
+    } catch {
+      setPageStatus({ tone: "error", message: "Something went wrong. Try again." });
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -130,8 +151,13 @@ export default function RegistrationsPage() {
       });
       if (res.ok) {
         setRegistrations((prev) => prev.filter((item) => item.id !== id));
+        setPageStatus({ tone: "success", message: "Registration deleted." });
+      } else {
+        setPageStatus({ tone: "error", message: "Unable to delete registration." });
       }
-    } catch {}
+    } catch {
+      setPageStatus({ tone: "error", message: "Unable to delete registration." });
+    }
   };
 
   const handleExport = () => {
@@ -167,8 +193,13 @@ export default function RegistrationsPage() {
       if (res.ok) {
         const created = (await res.json()) as RegistrationRecord[];
         setRegistrations((prev) => [...created, ...prev]);
+        setPageStatus({ tone: "success", message: "Registrations imported." });
+      } else {
+        setPageStatus({ tone: "error", message: "Unable to import registrations." });
       }
-    } catch {}
+    } catch {
+      setPageStatus({ tone: "error", message: "Unable to import registrations." });
+    }
     event.target.value = "";
   };
 
@@ -257,6 +288,11 @@ export default function RegistrationsPage() {
           </button>
         </div>
       </section>
+      {pageStatus && (
+        <div className={`admin__status admin__status--${pageStatus.tone}`}>
+          {pageStatus.message}
+        </div>
+      )}
 
       <section className="admin__panel">
         <div className="admin__panel-head">
