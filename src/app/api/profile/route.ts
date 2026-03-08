@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { getDb } from "@/lib/mongodb";
+import { requireAdmin, requireUser } from "@/lib/requestAuth";
 import type { ProfileRecord, ProfileSettings } from "@/lib/types";
 
 type ProfileDocument = Omit<ProfileRecord, "id" | "createdAt" | "updatedAt"> & {
@@ -28,40 +29,23 @@ const normalizeProfile = (doc: ProfileDocument & { _id: ObjectId }) => ({
   updatedAt: doc.updatedAt.toISOString(),
 });
 
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const userId = searchParams.get("userId");
+const emptyProfile = (userId: string, email = "") => ({
+  id: "",
+  userId,
+  fullName: "",
+  email,
+  avatarUrl: "",
+  phone: "",
+  address: "",
+  dob: "",
+  settings: defaultSettings,
+});
 
-  if (!userId) {
-    return NextResponse.json({ message: "Missing userId" }, { status: 400 });
-  }
-
-  const db = await getDb();
-  const collection = db.collection<ProfileDocument>("profiles");
-  const doc = await collection.findOne({ userId });
-
-  if (!doc || !doc._id) {
-    return NextResponse.json({
-      id: "",
-      userId,
-      fullName: "",
-      email: "",
-      avatarUrl: "",
-      phone: "",
-      address: "",
-      dob: "",
-      settings: defaultSettings,
-    });
-  }
-
-  return NextResponse.json(normalizeProfile(doc as ProfileDocument & { _id: ObjectId }));
-}
-
-const upsertProfile = async (payload: Partial<ProfileRecord>) => {
-  if (!payload.userId) {
-    return null;
-  }
-
+const upsertProfile = async (
+  userId: string,
+  payload: Partial<ProfileRecord>,
+  forcedEmail?: string
+) => {
   const db = await getDb();
   const collection = db.collection<ProfileDocument>("profiles");
   const now = new Date();
@@ -76,34 +60,79 @@ const upsertProfile = async (payload: Partial<ProfileRecord>) => {
   if (payload.address !== undefined) updates.address = payload.address;
   if (payload.dob !== undefined) updates.dob = payload.dob;
   if (payload.settings !== undefined) updates.settings = payload.settings;
+  if (forcedEmail) updates.email = forcedEmail;
 
   const result = await collection.findOneAndUpdate(
-    { userId: payload.userId },
+    { userId },
     {
       $set: updates,
-      $setOnInsert: { userId: payload.userId, createdAt: now },
+      $setOnInsert: { userId, createdAt: now },
     },
     { upsert: true, returnDocument: "after" }
   );
 
-  if (!result.value || !result.value._id) return null;
-  return normalizeProfile(result.value as ProfileDocument & { _id: ObjectId });
+  if (!result || !result._id) return null;
+  return normalizeProfile(result as ProfileDocument & { _id: ObjectId });
 };
 
-export async function POST(request: NextRequest) {
-  const payload = (await request.json()) as Partial<ProfileRecord>;
-  const profile = await upsertProfile(payload);
-  if (!profile) {
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const requestedUserId = searchParams.get("userId")?.trim() || "";
+
+  const admin = requireAdmin(request);
+  const user = requireUser(request);
+
+  if (!admin.ok && !user.ok) {
+    return user.response;
+  }
+
+  const targetUserId =
+    admin.ok && requestedUserId
+      ? requestedUserId
+      : user.ok
+        ? user.subject
+        : "";
+  if (!targetUserId) {
     return NextResponse.json({ message: "Missing userId" }, { status: 400 });
   }
-  return NextResponse.json(profile);
+
+  const db = await getDb();
+  const collection = db.collection<ProfileDocument>("profiles");
+  const doc = await collection.findOne({ userId: targetUserId });
+
+  if (!doc || !doc._id) {
+    return NextResponse.json(
+      emptyProfile(targetUserId, user.ok ? user.subject : "")
+    );
+  }
+
+  return NextResponse.json(normalizeProfile(doc as ProfileDocument & { _id: ObjectId }));
+}
+
+export async function POST(request: NextRequest) {
+  return PUT(request);
 }
 
 export async function PUT(request: NextRequest) {
   const payload = (await request.json()) as Partial<ProfileRecord>;
-  const profile = await upsertProfile(payload);
-  if (!profile) {
-    return NextResponse.json({ message: "Missing userId" }, { status: 400 });
+  const admin = requireAdmin(request);
+  const user = requireUser(request);
+
+  if (admin.ok && payload.userId?.trim()) {
+    const userId = payload.userId?.trim() || "";
+    const profile = await upsertProfile(userId, payload);
+    if (!profile) {
+      return NextResponse.json({ message: "Unable to update profile" }, { status: 500 });
+    }
+    return NextResponse.json(profile);
   }
+
+  if (!user.ok) return user.response;
+
+  const profile = await upsertProfile(user.subject, payload, user.subject);
+  if (!profile) {
+    return NextResponse.json({ message: "Unable to update profile" }, { status: 500 });
+  }
+
   return NextResponse.json(profile);
 }

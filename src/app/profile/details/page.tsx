@@ -4,27 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
 import TopBar from "@/components/TopBar";
-import { getOrCreateUserId } from "@/lib/clientUser";
-
-const AUTH_SESSION_KEY = "journey_auth_session";
-
-type AuthSession = {
-  email: string;
-  loggedInAt: string;
-};
+import { useStoredAuthSession } from "@/lib/clientAuth";
 
 export default function ProfileDetailsPage() {
-  const [authSession] = useState<AuthSession | null>(() => {
-    if (typeof window === "undefined") return null;
-    const stored = localStorage.getItem(AUTH_SESSION_KEY);
-    if (!stored) return null;
-    try {
-      const parsed = JSON.parse(stored) as AuthSession;
-      return parsed?.email ? parsed : null;
-    } catch {
-      return null;
-    }
-  });
+  const authSession = useStoredAuthSession();
   const [profile, setProfile] = useState({
     fullName: "",
     email: "",
@@ -38,10 +21,9 @@ export default function ProfileDetailsPage() {
 
   useEffect(() => {
     if (!authSession?.email) return;
-    const userId = getOrCreateUserId();
     const loadProfile = async () => {
       try {
-        const res = await fetch(`/api/profile?userId=${userId}`);
+        const res = await fetch("/api/profile");
         if (!res.ok) return;
         const data = await res.json();
         setProfile({
@@ -59,13 +41,11 @@ export default function ProfileDetailsPage() {
 
   const handleSave = async () => {
     if (!isLoggedIn) return;
-    const userId = getOrCreateUserId();
     const trimmed = profile.fullName.trim();
     const payload = {
       ...profile,
       fullName: trimmed,
       email: authSession?.email || profile.email,
-      userId,
     };
 
     try {

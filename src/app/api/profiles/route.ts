@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { getDb } from "@/lib/mongodb";
+import { requireAdmin } from "@/lib/requestAuth";
 import type { ProfileRecord, ProfileSettings } from "@/lib/types";
 
 type ProfileDocument = Omit<ProfileRecord, "id" | "createdAt" | "updatedAt"> & {
@@ -29,6 +30,9 @@ const normalizeProfile = (doc: ProfileDocument & { _id: ObjectId }) => ({
 });
 
 export async function GET(request: NextRequest) {
+  const admin = requireAdmin(request);
+  if (!admin.ok) return admin.response;
+
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q") || "";
   const limit = searchParams.get("limit");

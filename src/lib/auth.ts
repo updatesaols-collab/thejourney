@@ -1,8 +1,9 @@
 import crypto from "crypto";
+import { ObjectId } from "mongodb";
 import { getDb } from "@/lib/mongodb";
 
 type UserDocument = {
-  _id?: unknown;
+  _id?: ObjectId;
   email: string;
   passwordHash: string;
   passwordSalt: string;
@@ -11,7 +12,7 @@ type UserDocument = {
 };
 
 type ResetTokenDocument = {
-  _id?: unknown;
+  _id?: ObjectId;
   email: string;
   tokenHash: string;
   expiresAt: Date;

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   BookOpen,
@@ -12,6 +13,8 @@ import {
   Images,
   MessageSquare,
   Bell,
+  Star,
+  CircleHelp,
   Settings,
   UserRound,
 } from "lucide-react";
@@ -24,6 +27,8 @@ const NAV_ITEMS = [
   { href: "/admin/hero-slides", label: "Hero Slides", icon: Images },
   { href: "/admin/programs", label: "Programs", icon: CalendarDays },
   { href: "/admin/library", label: "Library", icon: BookOpen },
+  { href: "/admin/reviews", label: "Reviews", icon: Star },
+  { href: "/admin/faqs", label: "FAQs", icon: CircleHelp },
   { href: "/admin/notifications", label: "Notifications", icon: Bell },
   { href: "/admin/feedback", label: "Feedback", icon: MessageSquare },
   { href: "/admin/analytics", label: "Analytics", icon: ChartLine },
@@ -36,10 +41,18 @@ export default function AdminSidebar() {
   return (
     <aside className="admin__sidebar">
       <div className="admin__logo">
-        <div className="admin__logo-mark">J</div>
+        <div className="admin__logo-mark">
+          <Image
+            src="/artofliving.png"
+            alt="Art of Living"
+            width={120}
+            height={42}
+            priority
+          />
+        </div>
         <div>
-          <p>Journey Admin</p>
-          <span>Art of Living</span>
+          <p>Admin Panel</p>
+          <span>The Art of Living</span>
         </div>
       </div>
 

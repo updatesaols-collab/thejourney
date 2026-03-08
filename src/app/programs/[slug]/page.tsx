@@ -1,16 +1,75 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { CalendarDays, ExternalLink, MapPin, Sparkles } from "lucide-react";
+import {
+  Building2,
+  CalendarDays,
+  Clock3,
+  ExternalLink,
+  MapPin,
+  Sparkles,
+  Timer,
+  UserRound,
+} from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import TopBar from "@/components/TopBar";
 import { notFound } from "next/navigation";
 import { getProgramBySlug } from "@/lib/programs";
+import { sanitizeRichHtml } from "@/lib/sanitizeHtml";
 import ProgramRegistrationForm from "@/components/ProgramRegistrationForm";
+import ProgramInvitationCard from "@/components/ProgramInvitationCard";
+import { SEO_BRAND_NAME } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
 type ProgramPageProps = {
   params: Promise<{ slug: string }>;
 };
+
+export async function generateMetadata({
+  params,
+}: ProgramPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const program = await getProgramBySlug(slug);
+  if (!program) {
+    return {
+      title: "Program not found",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const title = `${program.title} in Kathmandu`;
+  const description =
+    program.summary ||
+    `Join ${program.title} by ${SEO_BRAND_NAME} for meditation, yoga and spiritual wellness in Kathmandu, Nepal.`;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: `/programs/${program.slug}`,
+    },
+    openGraph: {
+      title: `${program.title} | ${SEO_BRAND_NAME}`,
+      description,
+      type: "article",
+      url: `/programs/${program.slug}`,
+      images: program.imageUrl
+        ? [
+            {
+              url: program.imageUrl,
+              alt: program.title,
+            },
+          ]
+        : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${program.title} | Journey`,
+      description,
+      images: program.imageUrl ? [program.imageUrl] : ["/artofliving.png"],
+    },
+  };
+}
 
 export default async function ProgramPage({ params }: ProgramPageProps) {
   const { slug } = await params;
@@ -33,23 +92,72 @@ export default async function ProgramPage({ params }: ProgramPageProps) {
               <p className="program-summary">{program.summary}</p>
             </div>
             <div className="program-meta">
-              <span>
-                <CalendarDays size={16} />
-                {program.day}, {program.time} · {program.duration}
-              </span>
-              {(program.location || program.venue) && (
-                <span>
+              {program.date && (
+                <div className="program-meta__item">
+                  <CalendarDays size={16} />
+                  <div>
+                    <strong>Date</strong>
+                    <span>{program.day ? `${program.day}, ${program.date}` : program.date}</span>
+                  </div>
+                </div>
+              )}
+              {program.time && (
+                <div className="program-meta__item">
+                  <Clock3 size={16} />
+                  <div>
+                    <strong>Time</strong>
+                    <span>{program.time}</span>
+                  </div>
+                </div>
+              )}
+              {program.duration && (
+                <div className="program-meta__item">
+                  <Timer size={16} />
+                  <div>
+                    <strong>Duration</strong>
+                    <span>{program.duration}</span>
+                  </div>
+                </div>
+              )}
+              {program.venue && (
+                <div className="program-meta__item">
+                  <Building2 size={16} />
+                  <div>
+                    <strong>Venue</strong>
+                    <span>{program.venue}</span>
+                  </div>
+                </div>
+              )}
+              {program.location && (
+                <div className="program-meta__item">
                   <MapPin size={16} />
-                  {program.location || program.venue}
-                </span>
+                  <div>
+                    <strong>Location</strong>
+                    <span>{program.location}</span>
+                  </div>
+                </div>
+              )}
+              {program.facilitator && (
+                <div className="program-meta__item">
+                  <UserRound size={16} />
+                  <div>
+                    <strong>Teacher</strong>
+                    <span>{program.facilitator}</span>
+                  </div>
+                </div>
               )}
               {program.mapUrl && (
-                <span>
+                <div className="program-meta__item">
                   <ExternalLink size={16} />
-                  <a href={program.mapUrl} target="_blank" rel="noreferrer">
-                    View map
-                  </a>
-                </span>
+                  <div>
+                    <strong>Map</strong>
+                    <span>
+                      <a href={program.mapUrl} target="_blank" rel="noreferrer">
+                        View map
+                      </a>
+                    </span>
+                  </div>
+                </div>
               )}
             </div>
             <div className="hero__actions">
@@ -67,7 +175,7 @@ export default async function ProgramPage({ params }: ProgramPageProps) {
             {program.description && (
               <div
                 className="richtext-display"
-                dangerouslySetInnerHTML={{ __html: program.description }}
+                dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(program.description) }}
               />
             )}
           </section>
@@ -102,15 +210,10 @@ export default async function ProgramPage({ params }: ProgramPageProps) {
             </div>
           </section>
 
-          <section className="cta-panel surface">
-            <div>
-              <h2>Invite a friend</h2>
-              <p>Share the calm. Bring someone with you to this session.</p>
-            </div>
-            <a className="button button--secondary" href="#register-modal">
-              Register now
-            </a>
-          </section>
+          <ProgramInvitationCard
+            programSlug={program.slug}
+            programTitle={program.title}
+          />
         </div>
 
         <BottomNav active="explore" />

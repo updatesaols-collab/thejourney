@@ -4,7 +4,7 @@ import { HERO_SLIDES } from "@/data/heroSlides";
 import type { HeroSlideRecord, HeroSlideStatus } from "@/lib/types";
 
 type HeroSlideDocument = {
-  _id?: unknown;
+  _id?: ObjectId;
   imageUrl: string;
   link?: string;
   order?: number;
@@ -111,10 +111,8 @@ export const updateHeroSlide = async (id: string, payload: Partial<HeroSlideReco
     { returnDocument: "after" }
   );
 
-  if (!result.value || !result.value._id) return null;
-  return normalizeHeroSlide(
-    result.value as HeroSlideDocument & { _id: { toString(): string } }
-  );
+  if (!result || !result._id) return null;
+  return normalizeHeroSlide(result as HeroSlideDocument & { _id: { toString(): string } });
 };
 
 export const deleteHeroSlide = async (id: string) => {

@@ -81,12 +81,12 @@ export default function RichTextEditor({
     const currentText = editor.getText().trim();
     if (!value) {
       if (currentText.length > 0) {
-        editor.commands.setContent("", false);
+        editor.commands.setContent("", { emitUpdate: false });
       }
       return;
     }
     if (current !== value) {
-      editor.commands.setContent(value, false);
+      editor.commands.setContent(value, { emitUpdate: false });
     }
   }, [editor, value]);
 

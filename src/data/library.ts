@@ -85,4 +85,25 @@ export const LIBRARY_ITEMS: LibrarySeed[] = [
     time: "4 min",
     order: 2,
   },
+  {
+    kind: "intent",
+    title: "Release stress",
+    description: "",
+    link: "/library",
+    order: 0,
+  },
+  {
+    kind: "intent",
+    title: "Learn Sudarshan Kriya",
+    description: "",
+    link: "/library",
+    order: 1,
+  },
+  {
+    kind: "intent",
+    title: "Find solution for sleep",
+    description: "",
+    link: "/library",
+    order: 2,
+  },
 ];

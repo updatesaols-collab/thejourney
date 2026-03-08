@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteProgram, getProgramBySlug, updateProgram } from "@/lib/programs";
+import { requireAdmin } from "@/lib/requestAuth";
 import type { ProgramRecord } from "@/lib/types";
 
 type RouteContext = {
@@ -16,6 +17,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 }
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
+  const admin = requireAdmin(request);
+  if (!admin.ok) return admin.response;
+
   const { slug } = await context.params;
   const payload = (await request.json()) as Partial<ProgramRecord>;
   const updated = await updateProgram(slug, payload);
@@ -26,6 +30,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 }
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
+  const admin = requireAdmin(_request);
+  if (!admin.ok) return admin.response;
+
   const { slug } = await context.params;
   const removed = await deleteProgram(slug);
   if (!removed) {

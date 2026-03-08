@@ -4,26 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
 import TopBar from "@/components/TopBar";
-
-const AUTH_SESSION_KEY = "journey_auth_session";
-
-type AuthSession = {
-  email: string;
-  loggedInAt: string;
-};
+import { useStoredAuthSession } from "@/lib/clientAuth";
 
 export default function ProfileSecurityPage() {
-  const [authSession] = useState<AuthSession | null>(() => {
-    if (typeof window === "undefined") return null;
-    const stored = localStorage.getItem(AUTH_SESSION_KEY);
-    if (!stored) return null;
-    try {
-      const parsed = JSON.parse(stored) as AuthSession;
-      return parsed?.email ? parsed : null;
-    } catch {
-      return null;
-    }
-  });
+  const authSession = useStoredAuthSession();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -47,7 +31,6 @@ export default function ProfileSecurityPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: authSession.email,
           currentPassword,
           newPassword,
         }),

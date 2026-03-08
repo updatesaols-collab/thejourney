@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { getDb } from "@/lib/mongodb";
+import {
+  getUserSessionSubject,
+  requireAdmin,
+  requireUser,
+} from "@/lib/requestAuth";
 import type { RegistrationRecord } from "@/lib/types";
 
 type RegistrationDocument = Omit<RegistrationRecord, "id" | "createdAt"> & {
@@ -28,7 +33,33 @@ const normalizeRegistration = (doc: RegistrationDocument & { _id: ObjectId }) =>
   createdAt: doc.createdAt.toISOString(),
 });
 
+const buildDateRange = (from: string | null, to: string | null) => {
+  if (!from && !to) return null;
+  const range: Record<string, Date> = {};
+  if (from) {
+    const fromDate = new Date(from);
+    if (!Number.isNaN(fromDate.getTime())) {
+      range.$gte = fromDate;
+    }
+  }
+  if (to) {
+    const toDate = new Date(to);
+    if (!Number.isNaN(toDate.getTime())) {
+      toDate.setHours(23, 59, 59, 999);
+      range.$lte = toDate;
+    }
+  }
+  return Object.keys(range).length ? range : null;
+};
+
 export async function GET(request: NextRequest) {
+  const admin = requireAdmin(request);
+  const user = requireUser(request);
+
+  if (!admin.ok && !user.ok) {
+    return user.response;
+  }
+
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q") || "";
   const status = searchParams.get("status");
@@ -42,7 +73,7 @@ export async function GET(request: NextRequest) {
   const collection = db.collection<RegistrationDocument>("registrations");
   const query: Record<string, unknown> = {};
 
-  if (q) {
+  if (admin.ok && q) {
     query.$or = [
       { fullName: { $regex: q, $options: "i" } },
       { email: { $regex: q, $options: "i" } },
@@ -55,23 +86,24 @@ export async function GET(request: NextRequest) {
   if (program && program !== "All") {
     query.programTitle = program;
   }
-  if (userId) {
-    query.userId = userId;
+
+  if (admin.ok) {
+    if (userId) query.userId = userId;
+  } else if (user.ok) {
+    query.userId = user.subject;
   }
-  if (from || to) {
-    const range: Record<string, Date> = {};
-    if (from) range.$gte = new Date(from);
-    if (to) {
-      const toDate = new Date(to);
-      toDate.setHours(23, 59, 59, 999);
-      range.$lte = toDate;
-    }
+
+  const range = buildDateRange(from, to);
+  if (range) {
     query.createdAt = range;
   }
 
   let cursor = collection.find(query).sort({ createdAt: -1 });
   if (limit) {
-    cursor = cursor.limit(Number(limit));
+    const parsedLimit = Number(limit);
+    if (Number.isFinite(parsedLimit) && parsedLimit > 0) {
+      cursor = cursor.limit(parsedLimit);
+    }
   }
   const docs = await cursor.toArray();
   const normalized = docs.map((doc) =>
@@ -81,19 +113,19 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const payload = (await request.json()) as Partial<RegistrationRecord> | Partial<RegistrationRecord>[];
+  const payload = (await request.json()) as
+    | Partial<RegistrationRecord>
+    | Partial<RegistrationRecord>[];
+  const sessionUserId = getUserSessionSubject(request);
   const db = await getDb();
   const programs = db.collection("programs");
   const profiles = db.collection("profiles");
   const collection = db.collection<RegistrationDocument>("registrations");
 
   const buildDoc = async (item: Partial<RegistrationRecord>) => {
-    const program = item.programSlug
-      ? await programs.findOne({ slug: item.programSlug })
-      : null;
-    const profile = item.userId
-      ? await profiles.findOne({ userId: item.userId })
-      : null;
+    const safeUserId = sessionUserId || item.userId || "";
+    const program = item.programSlug ? await programs.findOne({ slug: item.programSlug }) : null;
+    const profile = safeUserId ? await profiles.findOne({ userId: safeUserId }) : null;
 
     const now = new Date();
     return {
@@ -112,7 +144,7 @@ export async function POST(request: NextRequest) {
       programDuration: item.programDuration || program?.duration || "",
       programTag: item.programTag || program?.tag || undefined,
       status: item.status || "Pending",
-      userId: item.userId || "",
+      userId: safeUserId,
       createdAt: now,
     } satisfies RegistrationDocument;
   };
@@ -141,10 +173,14 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const admin = requireAdmin(request);
+  if (!admin.ok) return admin.response;
+
   const payload = (await request.json()) as Partial<RegistrationRecord> & { id?: string };
   if (!payload.id) {
     return NextResponse.json({ message: "Missing id" }, { status: 400 });
   }
+
   const db = await getDb();
   const collection = db.collection<RegistrationDocument>("registrations");
   const idValue = String(payload.id).trim();
@@ -184,16 +220,19 @@ export async function PATCH(request: NextRequest) {
     { returnDocument: "after" }
   );
 
-  if (!result || !result.value) {
+  if (!result) {
     return NextResponse.json({ message: "Registration not found" }, { status: 404 });
   }
 
   return NextResponse.json(
-    normalizeRegistration(result.value as RegistrationDocument & { _id: ObjectId })
+    normalizeRegistration(result as RegistrationDocument & { _id: ObjectId })
   );
 }
 
 export async function DELETE(request: NextRequest) {
+  const admin = requireAdmin(request);
+  if (!admin.ok) return admin.response;
+
   const payload = (await request.json()) as { id?: string };
   if (!payload.id) {
     return NextResponse.json({ message: "Missing id" }, { status: 400 });
@@ -220,3 +259,4 @@ export async function DELETE(request: NextRequest) {
   }
   return NextResponse.json({ ok: true });
 }
+

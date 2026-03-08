@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHeroSlide, listHeroSlides } from "@/lib/heroSlides";
+import { requireAdmin } from "@/lib/requestAuth";
 import type { HeroSlideRecord } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
@@ -16,6 +17,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const admin = requireAdmin(request);
+  if (!admin.ok) return admin.response;
+
   const payload = (await request.json()) as
     | Partial<HeroSlideRecord>
     | Partial<HeroSlideRecord>[];

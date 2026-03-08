@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteLibraryItem, getLibraryById, updateLibraryItem } from "@/lib/library";
+import { requireAdmin } from "@/lib/requestAuth";
 import type { LibraryRecord } from "@/lib/types";
 
 type RouteContext = {
@@ -16,6 +17,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 }
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
+  const admin = requireAdmin(request);
+  if (!admin.ok) return admin.response;
+
   const { id } = await context.params;
   const payload = (await request.json()) as Partial<LibraryRecord>;
   const updated = await updateLibraryItem(id, payload);
@@ -26,6 +30,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 }
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
+  const admin = requireAdmin(_request);
+  if (!admin.ok) return admin.response;
+
   const { id } = await context.params;
   const removed = await deleteLibraryItem(id);
   if (!removed) {

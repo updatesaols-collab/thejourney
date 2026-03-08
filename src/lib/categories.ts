@@ -4,7 +4,7 @@ import { CATEGORIES } from "@/data/categories";
 import type { CategoryRecord, ProgramTag } from "@/lib/types";
 
 type CategoryDocument = {
-  _id?: unknown;
+  _id?: ObjectId;
   title: string;
   tag: ProgramTag;
   imageUrl?: string;
@@ -118,10 +118,8 @@ export const updateCategory = async (id: string, payload: Partial<CategoryRecord
     { returnDocument: "after" }
   );
 
-  if (!result.value || !result.value._id) return null;
-  return normalizeCategory(
-    result.value as CategoryDocument & { _id: { toString(): string } }
-  );
+  if (!result || !result._id) return null;
+  return normalizeCategory(result as CategoryDocument & { _id: { toString(): string } });
 };
 
 export const deleteCategory = async (id: string) => {

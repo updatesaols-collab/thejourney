@@ -1,13 +1,16 @@
 import { Collection, ObjectId } from "mongodb";
 import { LIBRARY_ITEMS } from "@/data/library";
 import { getDb } from "@/lib/mongodb";
+import { sanitizeRichHtml } from "@/lib/sanitizeHtml";
 import type { LibraryKind, LibraryRecord, LibraryTone } from "@/lib/types";
 
 type LibraryDocument = {
-  _id?: unknown;
+  _id?: ObjectId;
   kind: LibraryKind;
   title: string;
   description: string;
+  imageUrl?: string;
+  link?: string;
   eyebrow?: string;
   tag?: string;
   time?: string;
@@ -20,13 +23,18 @@ type LibraryDocument = {
 
 const COLLECTION_NAME = "library";
 
+/**
+ * Normalizes Mongo document to API-facing LibraryRecord.
+ */
 const normalizeLibrary = (
   doc: LibraryDocument & { _id: { toString(): string } }
 ): LibraryRecord => ({
   id: doc._id.toString(),
   kind: doc.kind,
   title: doc.title || "",
-  description: doc.description || "",
+  description: sanitizeRichHtml(doc.description || ""),
+  imageUrl: doc.imageUrl || "",
+  link: doc.link || "",
   eyebrow: doc.eyebrow || "",
   tag: doc.tag || "",
   time: doc.time || "",
@@ -59,6 +67,9 @@ export const ensureLibrarySeeded = async () => {
   await collection.insertMany(seedLibrary());
 };
 
+/**
+ * Lists library content with optional kind and free-text title filter.
+ */
 export const listLibrary = async (filters?: { kind?: string; q?: string }) => {
   await ensureLibrarySeeded();
   const collection = await getLibraryCollection();
@@ -75,6 +86,9 @@ export const listLibrary = async (filters?: { kind?: string; q?: string }) => {
   );
 };
 
+/**
+ * Fetches one library item by Mongo ObjectId string.
+ */
 export const getLibraryById = async (id: string) => {
   await ensureLibrarySeeded();
   if (!ObjectId.isValid(id)) return null;
@@ -127,6 +141,15 @@ const getFallbackForKind = (kind: LibraryKind) => {
       order: 0,
     } as const;
   }
+  if (kind === "intent") {
+    return {
+      kind,
+      title: "I want to...",
+      description: "",
+      link: "/library",
+      order: 0,
+    } as const;
+  }
   return {
     kind,
     title: "New suggestion",
@@ -145,8 +168,11 @@ export const createLibraryItem = async (payload: Partial<LibraryRecord>) => {
   const doc: LibraryDocument = {
     kind,
     title: payload.title?.trim() || fallback.title,
-    description:
-      payload.description !== undefined ? payload.description : fallback.description,
+    description: sanitizeRichHtml(
+      payload.description !== undefined ? payload.description : fallback.description
+    ),
+    imageUrl: payload.imageUrl !== undefined ? payload.imageUrl.trim() : "",
+    link: payload.link !== undefined ? payload.link.trim() : fallback.link,
     eyebrow: payload.eyebrow !== undefined ? payload.eyebrow : fallback.eyebrow,
     tag: payload.tag !== undefined ? payload.tag : fallback.tag,
     time: payload.time !== undefined ? payload.time : fallback.time,
@@ -164,6 +190,9 @@ export const createLibraryItem = async (payload: Partial<LibraryRecord>) => {
   });
 };
 
+/**
+ * Updates editable fields for a library item and returns the updated row.
+ */
 export const updateLibraryItem = async (id: string, payload: Partial<LibraryRecord>) => {
   if (!ObjectId.isValid(id)) return null;
   const collection = await getLibraryCollection();
@@ -173,7 +202,11 @@ export const updateLibraryItem = async (id: string, payload: Partial<LibraryReco
 
   if (payload.kind !== undefined) updates.kind = payload.kind as LibraryKind;
   if (payload.title !== undefined) updates.title = payload.title;
-  if (payload.description !== undefined) updates.description = payload.description;
+  if (payload.description !== undefined) {
+    updates.description = sanitizeRichHtml(payload.description);
+  }
+  if (payload.imageUrl !== undefined) updates.imageUrl = payload.imageUrl.trim();
+  if (payload.link !== undefined) updates.link = payload.link.trim();
   if (payload.eyebrow !== undefined) updates.eyebrow = payload.eyebrow;
   if (payload.tag !== undefined) updates.tag = payload.tag;
   if (payload.time !== undefined) updates.time = payload.time;
@@ -187,10 +220,13 @@ export const updateLibraryItem = async (id: string, payload: Partial<LibraryReco
     { returnDocument: "after" }
   );
 
-  if (!result.value || !result.value._id) return null;
-  return normalizeLibrary(result.value as LibraryDocument & { _id: { toString(): string } });
+  if (!result || !result._id) return null;
+  return normalizeLibrary(result as LibraryDocument & { _id: { toString(): string } });
 };
 
+/**
+ * Deletes a library item by id.
+ */
 export const deleteLibraryItem = async (id: string) => {
   if (!ObjectId.isValid(id)) return false;
   const collection = await getLibraryCollection();

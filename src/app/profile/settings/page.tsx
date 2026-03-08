@@ -5,14 +5,7 @@ import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
 import TopBar from "@/components/TopBar";
 import type { ProfileSettings } from "@/lib/types";
-import { getOrCreateUserId } from "@/lib/clientUser";
-
-const AUTH_SESSION_KEY = "journey_auth_session";
-
-type AuthSession = {
-  email: string;
-  loggedInAt: string;
-};
+import { useStoredAuthSession } from "@/lib/clientAuth";
 
 const defaultSettings: ProfileSettings = {
   emailUpdates: true,
@@ -21,27 +14,16 @@ const defaultSettings: ProfileSettings = {
 };
 
 export default function ProfileSettingsPage() {
-  const [authSession] = useState<AuthSession | null>(() => {
-    if (typeof window === "undefined") return null;
-    const stored = localStorage.getItem(AUTH_SESSION_KEY);
-    if (!stored) return null;
-    try {
-      const parsed = JSON.parse(stored) as AuthSession;
-      return parsed?.email ? parsed : null;
-    } catch {
-      return null;
-    }
-  });
+  const authSession = useStoredAuthSession();
   const [settings, setSettings] = useState<ProfileSettings>(defaultSettings);
   const [status, setStatus] = useState("");
   const isLoggedIn = Boolean(authSession?.email);
 
   useEffect(() => {
     if (!authSession?.email) return;
-    const userId = getOrCreateUserId();
     const loadSettings = async () => {
       try {
-        const res = await fetch(`/api/profile?userId=${userId}`);
+        const res = await fetch("/api/profile");
         if (!res.ok) return;
         const data = await res.json();
         if (data?.settings) {
@@ -54,12 +36,11 @@ export default function ProfileSettingsPage() {
 
   const handleSave = async () => {
     if (!isLoggedIn) return;
-    const userId = getOrCreateUserId();
     try {
       const res = await fetch("/api/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, settings }),
+        body: JSON.stringify({ settings }),
       });
       if (res.ok) {
         setStatus("Settings saved");

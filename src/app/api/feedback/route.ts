@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { getDb } from "@/lib/mongodb";
+import {
+  getUserSessionSubject,
+  requireAdmin,
+  requireUser,
+} from "@/lib/requestAuth";
 import type { FeedbackRecord } from "@/lib/types";
 
 type FeedbackDocument = Omit<FeedbackRecord, "id" | "createdAt"> & {
@@ -20,6 +25,13 @@ const normalizeFeedback = (doc: FeedbackDocument & { _id: ObjectId }) => ({
 });
 
 export async function GET(request: NextRequest) {
+  const admin = requireAdmin(request);
+  const user = requireUser(request);
+
+  if (!admin.ok && !user.ok) {
+    return user.response;
+  }
+
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q") || "";
   const program = searchParams.get("program");
@@ -41,7 +53,12 @@ export async function GET(request: NextRequest) {
   if (program && program !== "All") query.program = program;
   if (rating && rating !== "All") query.rating = Number(rating);
   if (type && type !== "All") query.type = type;
-  if (userId) query.userId = userId;
+
+  if (admin.ok) {
+    if (userId) query.userId = userId;
+  } else if (user.ok) {
+    query.userId = user.subject;
+  }
 
   const docs = await collection.find(query).sort({ createdAt: -1 }).toArray();
   return NextResponse.json(
@@ -51,14 +68,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const payload = (await request.json()) as Partial<FeedbackRecord> | Partial<FeedbackRecord>[];
+  const sessionUserId = getUserSessionSubject(request);
   const db = await getDb();
   const profiles = db.collection("profiles");
   const collection = db.collection<FeedbackDocument>("feedback");
 
   const buildDoc = async (item: Partial<FeedbackRecord>) => {
-    const profile = item.userId
-      ? await profiles.findOne({ userId: item.userId })
-      : null;
+    const safeUserId = sessionUserId || item.userId || "";
+    const profile = safeUserId ? await profiles.findOne({ userId: safeUserId }) : null;
 
     return {
       type: item.type || "journal",
@@ -67,7 +84,7 @@ export async function POST(request: NextRequest) {
       rating: item.rating ? Number(item.rating) : undefined,
       prompt: item.prompt || "",
       message: item.message || "",
-      userId: item.userId || "",
+      userId: safeUserId,
       createdAt: new Date(),
     } satisfies FeedbackDocument;
   };
@@ -96,6 +113,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const admin = requireAdmin(request);
+  if (!admin.ok) return admin.response;
+
   const payload = (await request.json()) as Partial<FeedbackRecord> & { id?: string };
   if (!payload.id) {
     return NextResponse.json({ message: "Missing id" }, { status: 400 });
@@ -103,6 +123,7 @@ export async function PATCH(request: NextRequest) {
   if (!ObjectId.isValid(payload.id)) {
     return NextResponse.json({ message: "Invalid id" }, { status: 400 });
   }
+
   const db = await getDb();
   const collection = db.collection<FeedbackDocument>("feedback");
   const id = new ObjectId(payload.id);
@@ -121,16 +142,19 @@ export async function PATCH(request: NextRequest) {
     { returnDocument: "after" }
   );
 
-  if (!result.value) {
+  if (!result) {
     return NextResponse.json({ message: "Feedback not found" }, { status: 404 });
   }
 
   return NextResponse.json(
-    normalizeFeedback(result.value as FeedbackDocument & { _id: ObjectId })
+    normalizeFeedback(result as FeedbackDocument & { _id: ObjectId })
   );
 }
 
 export async function DELETE(request: NextRequest) {
+  const admin = requireAdmin(request);
+  if (!admin.ok) return admin.response;
+
   const payload = (await request.json()) as { id?: string };
   if (!payload.id) {
     return NextResponse.json({ message: "Missing id" }, { status: 400 });
@@ -138,6 +162,7 @@ export async function DELETE(request: NextRequest) {
   if (!ObjectId.isValid(payload.id)) {
     return NextResponse.json({ message: "Invalid id" }, { status: 400 });
   }
+
   const db = await getDb();
   const collection = db.collection<FeedbackDocument>("feedback");
   const result = await collection.deleteOne({ _id: new ObjectId(payload.id) });
@@ -146,3 +171,4 @@ export async function DELETE(request: NextRequest) {
   }
   return NextResponse.json({ ok: true });
 }
+

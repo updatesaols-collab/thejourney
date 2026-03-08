@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { CalendarDays, MapPin, Search } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import TopBar from "@/components/TopBar";
@@ -11,9 +10,10 @@ import type { ProgramRecord } from "@/lib/types";
 export default function ExplorePage() {
   const [query, setQuery] = useState("");
   const [programs, setPrograms] = useState<ProgramRecord[]>([]);
-  const searchParams = useSearchParams();
-  const tagFromQuery = searchParams.get("tag") || "";
-  const [activeFilter, setActiveFilter] = useState(tagFromQuery || "All");
+  const [activeFilter, setActiveFilter] = useState(() => {
+    if (typeof window === "undefined") return "All";
+    return new URLSearchParams(window.location.search).get("tag") || "All";
+  });
 
   const filters = useMemo(() => {
     const options = new Set<string>();

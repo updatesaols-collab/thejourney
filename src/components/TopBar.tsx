@@ -25,6 +25,7 @@ export default function TopBar({
   const router = useRouter();
   const handleBack = () => router.back();
   const label = subtitle ?? (showBack ? "Journey" : "Your journey");
+  const detailLabel = "Journey - The Art of Living";
   const [openNotifications, setOpenNotifications] = useState(false);
   const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
   const [readIds, setReadIds] = useState<string[]>(() => {
@@ -86,34 +87,48 @@ export default function TopBar({
     [notifications]
   );
 
+  const backAction = showBack ? (
+    backHref ? (
+      <Link className="icon-button icon-button--soft" href={backHref} aria-label="Go back">
+        <ChevronLeft size={18} />
+      </Link>
+    ) : (
+      <button
+        className="icon-button icon-button--soft"
+        type="button"
+        onClick={handleBack}
+        aria-label="Go back"
+      >
+        <ChevronLeft size={18} />
+      </button>
+    )
+  ) : null;
+
   return (
-    <header className="home-header">
-      <div className="location">
-        <span className="location__label">
-          {showBack ? (
-            backHref ? (
-              <Link className="icon-button icon-button--soft" href={backHref}>
-                <ChevronLeft size={18} />
-              </Link>
-            ) : (
-              <button
-                className="icon-button icon-button--soft"
-                type="button"
-                onClick={handleBack}
-                aria-label="Go back"
-              >
-                <ChevronLeft size={18} />
-              </button>
-            )
-          ) : (
-            <MapPin size={14} />
-          )}
-          {label}
-        </span>
-        <button className="location__value" type="button">
-          {title}
-          {!showBack && variant === "home" && <ChevronDown size={16} />}
-        </button>
+    <header className={`home-header ${showBack ? "home-header--detail" : ""}`}>
+      <div className={`location ${showBack ? "location--detail" : ""}`}>
+        {showBack ? (
+          <>
+            <div className="location__backline">
+              {backAction}
+              <div className="location__meta">
+                <span className="location__tag">{title}</span>
+                <span className="location__label-soft">{detailLabel}</span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <span className="location__label">
+              <MapPin size={14} />
+              {label}
+            </span>
+            <button className="location__value" type="button">
+              {title}
+              {variant === "home" && <ChevronDown size={16} />}
+            </button>
+          </>
+        )}
       </div>
       <div className="icon-row">
         {variant === "explore" ? (

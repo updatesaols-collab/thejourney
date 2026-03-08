@@ -6,6 +6,7 @@ import {
   Camera,
   CalendarDays,
   ChevronRight,
+  LifeBuoy,
   LogOut,
   MessageSquare,
   Settings,
@@ -14,27 +15,14 @@ import {
 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import TopBar from "@/components/TopBar";
-import { getOrCreateUserId } from "@/lib/clientUser";
-
-const AUTH_SESSION_KEY = "journey_auth_session";
-
-type AuthSession = {
-  email: string;
-  loggedInAt: string;
-};
+import {
+  clearStoredAuthSession,
+  setStoredAuthSession,
+  type AuthSession,
+  useStoredAuthSession,
+} from "@/lib/clientAuth";
 
 const normalizeEmail = (value: string) => value.trim().toLowerCase();
-const getStoredSession = (): AuthSession | null => {
-  if (typeof window === "undefined") return null;
-  const stored = localStorage.getItem(AUTH_SESSION_KEY);
-  if (!stored) return null;
-  try {
-    const parsed = JSON.parse(stored) as AuthSession;
-    return parsed?.email ? parsed : null;
-  } catch {
-    return null;
-  }
-};
 
 export default function ProfilePage() {
   const [savedName, setSavedName] = useState("Seeker");
@@ -47,11 +35,9 @@ export default function ProfilePage() {
     dob: "",
   });
   const [avatarStatus, setAvatarStatus] = useState("");
-  const [authSession, setAuthSession] = useState<AuthSession | null>(() =>
-    getStoredSession()
-  );
+  const authSession = useStoredAuthSession();
   const [authMode, setAuthMode] = useState<"login" | "create" | "forgot">("login");
-  const [loginEmail, setLoginEmail] = useState(() => getStoredSession()?.email || "");
+  const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [authStatus, setAuthStatus] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
@@ -77,11 +63,9 @@ export default function ProfilePage() {
       return;
     }
 
-    const userId = getOrCreateUserId();
-
     const loadProfile = async () => {
       try {
-        const res = await fetch(`/api/profile?userId=${userId}`);
+        const res = await fetch("/api/profile");
         if (!res.ok) return;
         const data = await res.json();
         setProfile({
@@ -137,8 +121,7 @@ export default function ProfilePage() {
       }
 
       const session: AuthSession = { email, loggedInAt: new Date().toISOString() };
-      localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
-      setAuthSession(session);
+      setStoredAuthSession(session);
       setAuthStatus("Welcome back.");
       setLoginPassword("");
       if (!profile.email || profile.email === email) {
@@ -174,8 +157,7 @@ export default function ProfilePage() {
       }
 
       const session: AuthSession = { email, loggedInAt: new Date().toISOString() };
-      localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
-      setAuthSession(session);
+      setStoredAuthSession(session);
       setSignupStatus("Account created. You're now logged in.");
       setSignupPassword("");
       setSignupConfirm("");
@@ -215,13 +197,15 @@ export default function ProfilePage() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {}
+    clearStoredAuthSession();
     if (typeof window !== "undefined") {
-      localStorage.removeItem(AUTH_SESSION_KEY);
       localStorage.removeItem("journey_profile_name");
       localStorage.removeItem("journey_profile");
     }
-    setAuthSession(null);
     setAuthStatus("Signed out.");
     setLoginPassword("");
     setAuthMode("login");
@@ -279,11 +263,10 @@ export default function ProfilePage() {
       }
       setProfile((prev) => ({ ...prev, avatarUrl }));
 
-      const userId = getOrCreateUserId();
       await fetch("/api/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, avatarUrl }),
+        body: JSON.stringify({ avatarUrl }),
       });
       setAvatarStatus("Profile photo updated.");
     } catch {
@@ -375,6 +358,13 @@ export default function ProfilePage() {
                       <Shield size={18} />
                     </span>
                     <span className="profile-action__label">Security</span>
+                    <ChevronRight size={18} className="profile-action__chevron" />
+                  </Link>
+                  <Link className="profile-action" href="/profile/support">
+                    <span className="profile-action__icon">
+                      <LifeBuoy size={18} />
+                    </span>
+                    <span className="profile-action__label">Contact & support</span>
                     <ChevronRight size={18} className="profile-action__chevron" />
                   </Link>
                   <button

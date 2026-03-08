@@ -191,7 +191,25 @@ export default function ProgramsPage() {
 
   const handleExport = () => {
     const rows = exportScope === "all" ? programs : filteredPrograms;
-    downloadCsv("programs.csv", rows, [
+    const exportRows = rows.map((item) => ({
+      title: item.title,
+      date: item.date,
+      day: item.day,
+      time: item.time,
+      duration: item.duration,
+      tag: item.tag,
+      location: item.location,
+      venue: item.venue || "",
+      mapUrl: item.mapUrl || "",
+      imageUrl: item.imageUrl || "",
+      summary: item.summary || "",
+      description: item.description || "",
+      highlights: item.highlights.join(" | "),
+      facilitator: item.facilitator,
+      seats: item.seats,
+      status: item.status,
+    }));
+    downloadCsv("programs.csv", exportRows, [
       "title",
       "date",
       "day",

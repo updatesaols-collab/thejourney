@@ -1,6 +1,8 @@
 "use client";
 
-import { Bell, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { Search } from "lucide-react";
 import AdminSidebar from "./AdminSidebar";
 
 type SearchConfig = {
@@ -16,12 +18,66 @@ type AdminShellProps = {
   children: React.ReactNode;
 };
 
+type AdminProfile = {
+  fullName: string;
+  role: string;
+  email: string;
+};
+
+const ADMIN_PROFILE_STORAGE_KEY = "journey_admin_profile";
+const DEFAULT_ADMIN_PROFILE: AdminProfile = {
+  fullName: "Admin",
+  role: "Operations",
+  email: "",
+};
+
 export default function AdminShell({
   title,
   subtitle,
   search,
   children,
 }: AdminShellProps) {
+  const [adminProfile, setAdminProfile] = useState<AdminProfile>(DEFAULT_ADMIN_PROFILE);
+
+  useEffect(() => {
+    const loadProfile = () => {
+      if (typeof window === "undefined") return;
+      const stored = window.localStorage.getItem(ADMIN_PROFILE_STORAGE_KEY);
+      if (!stored) {
+        setAdminProfile(DEFAULT_ADMIN_PROFILE);
+        return;
+      }
+      try {
+        const parsed = JSON.parse(stored) as Partial<AdminProfile>;
+        setAdminProfile({
+          fullName: parsed.fullName?.trim() || DEFAULT_ADMIN_PROFILE.fullName,
+          role: parsed.role?.trim() || DEFAULT_ADMIN_PROFILE.role,
+          email: parsed.email?.trim() || "",
+        });
+      } catch {
+        setAdminProfile(DEFAULT_ADMIN_PROFILE);
+      }
+    };
+
+    loadProfile();
+    window.addEventListener("storage", loadProfile);
+    window.addEventListener("admin-profile-updated", loadProfile);
+    return () => {
+      window.removeEventListener("storage", loadProfile);
+      window.removeEventListener("admin-profile-updated", loadProfile);
+    };
+  }, []);
+
+  const initials = useMemo(() => {
+    const parts = adminProfile.fullName
+      .split(/\s+/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (!parts.length) return "AD";
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }, [adminProfile.fullName]);
+
   return (
     <div className="admin">
       <AdminSidebar />
@@ -42,16 +98,13 @@ export default function AdminShell({
             </div>
           )}
           <div className="admin__actions">
-            <button className="admin__icon" type="button">
-              <Bell size={18} />
-            </button>
-            <div className="admin__user">
-              <div className="admin__avatar">JD</div>
+            <Link className="admin__user admin__user-link" href="/admin/settings">
+              <div className="admin__avatar">{initials}</div>
               <div>
-                <p>Admin</p>
-                <span>Operations</span>
+                <p>{adminProfile.fullName}</p>
+                <span>{adminProfile.role || "Profile & Settings"}</span>
               </div>
-            </div>
+            </Link>
           </div>
         </header>
         {children}

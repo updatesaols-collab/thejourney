@@ -4,7 +4,7 @@ import { NOTIFICATIONS } from "@/data/notifications";
 import type { NotificationRecord, NotificationStatus } from "@/lib/types";
 
 type NotificationDocument = {
-  _id?: unknown;
+  _id?: ObjectId;
   title: string;
   message: string;
   link?: string;
@@ -121,10 +121,8 @@ export const updateNotification = async (
     { returnDocument: "after" }
   );
 
-  if (!result.value || !result.value._id) return null;
-  return normalizeNotification(
-    result.value as NotificationDocument & { _id: { toString(): string } }
-  );
+  if (!result || !result._id) return null;
+  return normalizeNotification(result as NotificationDocument & { _id: { toString(): string } });
 };
 
 export const deleteNotification = async (id: string) => {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createLibraryItem, listLibrary } from "@/lib/library";
+import { requireAdmin } from "@/lib/requestAuth";
 import type { LibraryRecord } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
@@ -12,6 +13,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const admin = requireAdmin(request);
+  if (!admin.ok) return admin.response;
+
   const payload = (await request.json()) as Partial<LibraryRecord> | Partial<LibraryRecord>[];
 
   if (Array.isArray(payload)) {

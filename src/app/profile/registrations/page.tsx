@@ -5,36 +5,18 @@ import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
 import TopBar from "@/components/TopBar";
 import type { RegistrationRecord } from "@/lib/types";
-import { getOrCreateUserId } from "@/lib/clientUser";
-
-const AUTH_SESSION_KEY = "journey_auth_session";
-
-type AuthSession = {
-  email: string;
-  loggedInAt: string;
-};
+import { useStoredAuthSession } from "@/lib/clientAuth";
 
 export default function ProfileRegistrationsPage() {
-  const [authSession] = useState<AuthSession | null>(() => {
-    if (typeof window === "undefined") return null;
-    const stored = localStorage.getItem(AUTH_SESSION_KEY);
-    if (!stored) return null;
-    try {
-      const parsed = JSON.parse(stored) as AuthSession;
-      return parsed?.email ? parsed : null;
-    } catch {
-      return null;
-    }
-  });
+  const authSession = useStoredAuthSession();
   const [registrations, setRegistrations] = useState<RegistrationRecord[]>([]);
   const isLoggedIn = Boolean(authSession?.email);
 
   useEffect(() => {
     if (!authSession?.email) return;
-    const userId = getOrCreateUserId();
     const loadRegistrations = async () => {
       try {
-        const res = await fetch(`/api/registrations?userId=${userId}`);
+        const res = await fetch("/api/registrations");
         if (!res.ok) return;
         const data = (await res.json()) as RegistrationRecord[];
         setRegistrations(data);

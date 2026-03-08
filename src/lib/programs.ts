@@ -1,11 +1,12 @@
-import { Collection } from "mongodb";
+import { Collection, ObjectId } from "mongodb";
 import { PROGRAMS } from "@/data/programs";
 import { getDb } from "@/lib/mongodb";
+import { sanitizeRichHtml } from "@/lib/sanitizeHtml";
 import { slugify } from "@/lib/slug";
 import type { ProgramRecord, ProgramStatus, ProgramTag } from "@/lib/types";
 
 type ProgramDocument = {
-  _id?: unknown;
+  _id?: ObjectId;
   slug: string;
   title: string;
   date: string;
@@ -56,7 +57,7 @@ const normalizeProgram = (doc: ProgramDocument & { _id: { toString(): string } }
   mapUrl: doc.mapUrl || "",
   imageUrl: doc.imageUrl || "",
   summary: doc.summary || "",
-  description: doc.description || "",
+  description: sanitizeRichHtml(doc.description || ""),
   highlights: normalizeHighlights(doc.highlights),
   facilitator: doc.facilitator || "Journey Guides",
   seats: Number.isFinite(doc.seats) ? doc.seats : 0,
@@ -152,9 +153,10 @@ export const createProgram = async (payload: Partial<ProgramRecord>) => {
     summary:
       payload.summary ||
       "A guided session designed to support calm, clarity, and inner renewal.",
-    description:
+    description: sanitizeRichHtml(
       payload.description ||
-      "Join a thoughtful, guided practice to relax the nervous system and reconnect with what matters.",
+        "Join a thoughtful, guided practice to relax the nervous system and reconnect with what matters."
+    ),
     highlights:
       payload.highlights !== undefined
         ? normalizeHighlights(payload.highlights)
@@ -191,7 +193,9 @@ export const updateProgram = async (slug: string, payload: Partial<ProgramRecord
     updates.imageUrl = payload.imageUrl.trim();
   }
   if (payload.summary !== undefined) updates.summary = payload.summary;
-  if (payload.description !== undefined) updates.description = payload.description;
+  if (payload.description !== undefined) {
+    updates.description = sanitizeRichHtml(payload.description);
+  }
   if (payload.highlights !== undefined) {
     updates.highlights = normalizeHighlights(payload.highlights);
   }
@@ -209,8 +213,8 @@ export const updateProgram = async (slug: string, payload: Partial<ProgramRecord
     { returnDocument: "after" }
   );
 
-  if (!result.value || !result.value._id) return null;
-  return normalizeProgram(result.value as ProgramDocument & { _id: { toString(): string } });
+  if (!result || !result._id) return null;
+  return normalizeProgram(result as ProgramDocument & { _id: { toString(): string } });
 };
 
 export const deleteProgram = async (slug: string) => {

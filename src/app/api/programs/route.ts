@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createProgram, listPrograms } from "@/lib/programs";
+import { requireAdmin } from "@/lib/requestAuth";
 import type { ProgramRecord } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
@@ -20,6 +21,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const admin = requireAdmin(request);
+  if (!admin.ok) return admin.response;
+
   const payload = (await request.json()) as Partial<ProgramRecord> | Partial<ProgramRecord>[];
 
   if (Array.isArray(payload)) {

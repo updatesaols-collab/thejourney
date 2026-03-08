@@ -1,12 +1,30 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Download, Pencil, Plus, Trash2, Upload } from "lucide-react";
+import { Download, Mail, Pencil, Plus, Trash2, Upload } from "lucide-react";
 import AdminShell from "../_components/AdminShell";
 import type { RegistrationRecord } from "@/lib/types";
 import { downloadCsv, parseAdminDate, parseCsv } from "../utils";
+import RichTextEditor from "@/components/RichTextEditor";
 
 const STATUS_FILTERS = ["All", "Pending", "Confirmed", "Waitlist"] as const;
+const EMAIL_TARGETS = [
+  { value: "selected", label: "Selected people" },
+  { value: "filtered", label: "Filtered results" },
+  { value: "all", label: "All registrations" },
+] as const;
+
+type EmailTarget = (typeof EMAIL_TARGETS)[number]["value"];
+type EmailRecipient = {
+  email: string;
+  name: string;
+};
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const normalizeEmail = (value: string) => value.trim().toLowerCase();
+const isValidEmail = (value: string) => EMAIL_REGEX.test(normalizeEmail(value));
+const stripHtml = (value: string) => value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 
 export default function RegistrationsPage() {
   const [registrations, setRegistrations] = useState<RegistrationRecord[]>([]);
@@ -31,6 +49,12 @@ export default function RegistrationsPage() {
     programTitle: "",
     status: "Pending",
   });
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [emailTarget, setEmailTarget] = useState<EmailTarget>("selected");
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailMessage, setEmailMessage] = useState("");
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -77,6 +101,55 @@ export default function RegistrationsPage() {
       return matchesSearch && matchesStatus && matchesProgram && matchesFrom && matchesTo;
     });
   }, [query, registrations, statusFilter, programFilter, dateFrom, dateTo]);
+
+  useEffect(() => {
+    setSelectedIds((prev) =>
+      prev.filter((id) => registrations.some((item) => item.id === id))
+    );
+  }, [registrations]);
+
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+
+  const selectedRegistrations = useMemo(
+    () => registrations.filter((item) => selectedSet.has(item.id)),
+    [registrations, selectedSet]
+  );
+
+  const filteredIds = useMemo(
+    () => filteredRegistrations.map((item) => item.id),
+    [filteredRegistrations]
+  );
+
+  const selectedFilteredCount = useMemo(
+    () => filteredIds.filter((id) => selectedSet.has(id)).length,
+    [filteredIds, selectedSet]
+  );
+
+  const allFilteredSelected =
+    filteredIds.length > 0 && selectedFilteredCount === filteredIds.length;
+
+  const emailRecipients = useMemo(() => {
+    const source =
+      emailTarget === "selected"
+        ? selectedRegistrations
+        : emailTarget === "filtered"
+          ? filteredRegistrations
+          : registrations;
+
+    const deduped = new Map<string, EmailRecipient>();
+    source.forEach((item) => {
+      const email = normalizeEmail(item.email || "");
+      if (!isValidEmail(email)) return;
+      if (!deduped.has(email)) {
+        deduped.set(email, {
+          email,
+          name: item.fullName?.trim() || "",
+        });
+      }
+    });
+
+    return Array.from(deduped.values());
+  }, [emailTarget, filteredRegistrations, registrations, selectedRegistrations]);
 
   const openModal = (nextMode: "add" | "edit", item?: RegistrationRecord) => {
     setMode(nextMode);
@@ -203,6 +276,109 @@ export default function RegistrationsPage() {
     event.target.value = "";
   };
 
+  const toggleSelectAllFiltered = (checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      filteredIds.forEach((id) => {
+        if (checked) {
+          next.add(id);
+        } else {
+          next.delete(id);
+        }
+      });
+      return Array.from(next);
+    });
+  };
+
+  const toggleRowSelection = (id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return Array.from(next);
+    });
+  };
+
+  const openEmailModal = () => {
+    setPageStatus(null);
+    setEmailTarget(selectedIds.length > 0 ? "selected" : "filtered");
+    setEmailModalOpen(true);
+  };
+
+  const handleSendEmail = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!emailSubject.trim()) {
+      setPageStatus({ tone: "error", message: "Email subject is required." });
+      return;
+    }
+    if (!stripHtml(emailMessage)) {
+      setPageStatus({ tone: "error", message: "Email message is required." });
+      return;
+    }
+    if (emailRecipients.length === 0) {
+      setPageStatus({ tone: "error", message: "No valid recipient emails found." });
+      return;
+    }
+
+    setIsSendingEmail(true);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 45000);
+    try {
+      const res = await fetch("/api/admin/registrations/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          subject: emailSubject.trim(),
+          messageHtml: emailMessage,
+          recipients: emailRecipients,
+        }),
+      });
+      clearTimeout(timeout);
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPageStatus({
+          tone: "error",
+          message: data.message || "Unable to send emails.",
+        });
+        return;
+      }
+
+      const sent = Number(data.sent) || 0;
+      const failed = Number(data.failed) || 0;
+      setPageStatus({
+        tone: "success",
+        message:
+          failed > 0
+            ? `Email sent to ${sent} people. ${failed} failed.`
+            : `Email sent to ${sent} people.`,
+      });
+      setEmailModalOpen(false);
+      setEmailSubject("");
+      setEmailMessage("");
+      if (emailTarget === "selected") {
+        setSelectedIds([]);
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        setPageStatus({
+          tone: "error",
+          message: "Email request timed out. Please try again.",
+        });
+      } else {
+        setPageStatus({ tone: "error", message: "Unable to send emails." });
+      }
+    } finally {
+      clearTimeout(timeout);
+      setIsSendingEmail(false);
+    }
+  };
+
   return (
     <AdminShell
       title="Registrations"
@@ -283,6 +459,9 @@ export default function RegistrationsPage() {
           <button className="admin__button light" onClick={handleExport}>
             <Download size={16} /> Export
           </button>
+          <button className="admin__button ghost" onClick={openEmailModal}>
+            <Mail size={16} /> Send email
+          </button>
           <button className="admin__button" onClick={() => openModal("add")}>
             <Plus size={16} /> Add registration
           </button>
@@ -298,12 +477,23 @@ export default function RegistrationsPage() {
         <div className="admin__panel-head">
           <div>
             <h2>Registration list</h2>
-            <p>{filteredRegistrations.length} results</p>
+            <p>
+              {filteredRegistrations.length} results · {selectedIds.length} selected
+            </p>
           </div>
         </div>
         <table className="admin__table">
           <thead>
             <tr>
+              <th>
+                <input
+                  type="checkbox"
+                  aria-label="Select all filtered registrations"
+                  checked={allFilteredSelected}
+                  onChange={(event) => toggleSelectAllFiltered(event.target.checked)}
+                  disabled={filteredIds.length === 0}
+                />
+              </th>
               <th>Name</th>
               <th>Program</th>
               <th>Date</th>
@@ -314,6 +504,16 @@ export default function RegistrationsPage() {
           <tbody>
             {filteredRegistrations.map((item) => (
               <tr key={item.id}>
+                <td>
+                  <input
+                    type="checkbox"
+                    aria-label={`Select ${item.fullName || item.email || "registration"}`}
+                    checked={selectedSet.has(item.id)}
+                    onChange={(event) =>
+                      toggleRowSelection(item.id, event.target.checked)
+                    }
+                  />
+                </td>
                 <td>
                   <strong>{item.fullName}</strong>
                   <span>{item.email}</span>
@@ -346,6 +546,65 @@ export default function RegistrationsPage() {
           </tbody>
         </table>
       </section>
+
+      {emailModalOpen && (
+        <div className="admin-modal">
+          <div
+            className="admin-modal__backdrop"
+            onClick={() => setEmailModalOpen(false)}
+          />
+          <div className="admin-modal__content">
+            <div className="admin-modal__header">
+              <h3>Send email</h3>
+              <button className="admin__icon" onClick={() => setEmailModalOpen(false)}>
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleSendEmail} className="admin-modal__form">
+              <label>
+                Recipients
+                <select
+                  value={emailTarget}
+                  onChange={(event) => setEmailTarget(event.target.value as EmailTarget)}
+                >
+                  {EMAIL_TARGETS.map((target) => (
+                    <option key={target.value} value={target.value}>
+                      {target.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <span className="admin__hint">
+                {emailRecipients.length} valid email recipient
+                {emailRecipients.length === 1 ? "" : "s"} will receive this message.
+              </span>
+              <label>
+                Subject
+                <input
+                  value={emailSubject}
+                  onChange={(event) => setEmailSubject(event.target.value)}
+                  placeholder="Enter email subject"
+                />
+              </label>
+              <label>
+                Message
+                <RichTextEditor
+                  value={emailMessage}
+                  onChange={setEmailMessage}
+                  placeholder="Write your email message..."
+                />
+              </label>
+              <button
+                className="admin__button"
+                type="submit"
+                disabled={isSendingEmail || emailRecipients.length === 0}
+              >
+                {isSendingEmail ? "Sending..." : `Send email (${emailRecipients.length})`}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {modalOpen && (
         <div className="admin-modal">

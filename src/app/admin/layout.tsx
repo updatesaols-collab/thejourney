@@ -10,6 +10,16 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: "Journey Admin",
   description: "Administrative dashboard for Journey - The Art of Living",
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+    },
+  },
 };
 
 export default function AdminLayout({

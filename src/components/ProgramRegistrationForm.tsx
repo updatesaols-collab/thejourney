@@ -1,14 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import type { ProgramRecord } from "@/lib/types";
-import { getOrCreateUserId } from "@/lib/clientUser";
 
 type Props = {
   program: ProgramRecord;
 };
 
 export default function ProgramRegistrationForm({ program }: Props) {
+  const router = useRouter();
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -18,18 +20,30 @@ export default function ProgramRegistrationForm({ program }: Props) {
     aolExperience: "",
     message: "",
   });
-  const [status, setStatus] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<{
+    tone: "success" | "error";
+    message: string;
+  } | null>(null);
 
   const handleChange = (key: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleFeedbackAction = () => {
+    if (!feedback) return;
+    if (feedback.tone === "success") {
+      router.push("/");
+      return;
+    }
+    setFeedback(null);
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isSubmitting) return;
     setIsSubmitting(true);
-    setStatus("");
+    setFeedback(null);
 
     try {
       const payload = {
@@ -41,7 +55,6 @@ export default function ProgramRegistrationForm({ program }: Props) {
         programTime: program.time,
         programDuration: program.duration,
         programTag: program.tag,
-        userId: getOrCreateUserId(),
       };
 
       const res = await fetch("/api/registrations", {
@@ -49,9 +62,15 @@ export default function ProgramRegistrationForm({ program }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      const data = (await res.json().catch(() => ({ message: "" }))) as {
+        message?: string;
+      };
 
       if (res.ok) {
-        setStatus("Registration received. We'll be in touch soon.");
+        setFeedback({
+          tone: "success",
+          message: "Registration received. We'll be in touch soon.",
+        });
         setForm({
           fullName: "",
           email: "",
@@ -62,10 +81,16 @@ export default function ProgramRegistrationForm({ program }: Props) {
           message: "",
         });
       } else {
-        setStatus("Unable to submit. Please try again.");
+        setFeedback({
+          tone: "error",
+          message: data.message || "Unable to submit. Please try again.",
+        });
       }
     } catch {
-      setStatus("Unable to submit. Please try again.");
+      setFeedback({
+        tone: "error",
+        message: "Unable to submit. Please try again.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -142,10 +167,38 @@ export default function ProgramRegistrationForm({ program }: Props) {
       <button type="submit" className="button button--primary" disabled={isSubmitting}>
         {isSubmitting ? "Submitting..." : "Submit registration"}
       </button>
-      {status && (
-        <p className="list-meta" aria-live="polite">
-          {status}
-        </p>
+
+      {feedback && (
+        <div className="modal modal--open" aria-hidden={false}>
+          <button
+            type="button"
+            className="modal__backdrop"
+            aria-label="Close status modal"
+            onClick={handleFeedbackAction}
+          />
+          <div className={`modal__content surface action-feedback action-feedback--${feedback.tone}`}>
+            <div className="action-feedback__icon" aria-hidden="true">
+              {feedback.tone === "success" ? (
+                <CheckCircle2 size={28} />
+              ) : (
+                <AlertTriangle size={28} />
+              )}
+            </div>
+            <h2>
+              {feedback.tone === "success"
+                ? "Registration successful"
+                : "Unable to register"}
+            </h2>
+            <p>{feedback.message}</p>
+            <button
+              type="button"
+              className="button button--secondary"
+              onClick={handleFeedbackAction}
+            >
+              {feedback.tone === "success" ? "Go to home" : "Okay"}
+            </button>
+          </div>
+        </div>
       )}
     </form>
   );

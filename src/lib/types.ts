@@ -35,6 +35,56 @@ export type NotificationRecord = {
   updatedAt?: string;
 };
 
+export type ReviewStatus = "Published" | "Hidden";
+
+export type ReviewRecord = {
+  id: string;
+  name: string;
+  role?: string;
+  location?: string;
+  rating: number;
+  message: string;
+  program?: string;
+  featured: boolean;
+  order: number;
+  status: ReviewStatus;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type FaqStatus = "Published" | "Draft";
+
+export type FaqRecord = {
+  id: string;
+  question: string;
+  answer: string;
+  category: string;
+  order: number;
+  status: FaqStatus;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type BlogStatus = "Published" | "Draft";
+
+export type BlogRecord = {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string;
+  content: string;
+  coverImage?: string;
+  author: string;
+  tags: string[];
+  seoTitle?: string;
+  seoDescription?: string;
+  featured: boolean;
+  status: BlogStatus;
+  publishedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type CategoryRecord = {
   id: string;
   title: string;
@@ -58,7 +108,13 @@ export type HeroSlideRecord = {
   updatedAt?: string;
 };
 
-export type LibraryKind = "hero" | "cta" | "suggestion" | "article" | "quick";
+export type LibraryKind =
+  | "hero"
+  | "cta"
+  | "suggestion"
+  | "article"
+  | "quick"
+  | "intent";
 
 export type LibraryTone = "sleep" | "anxiety" | "morning" | "relief";
 
@@ -67,6 +123,8 @@ export type LibraryRecord = {
   kind: LibraryKind;
   title: string;
   description: string;
+  imageUrl?: string;
+  link?: string;
   eyebrow?: string;
   tag?: string;
   time?: string;
@@ -132,4 +190,43 @@ export type ProfileRecord = {
   settings: ProfileSettings;
   createdAt?: string;
   updatedAt?: string;
+};
+
+export type InteractionEventType = "page_view" | "click" | "form_submit";
+
+export type InteractionEventRecord = {
+  id: string;
+  type: InteractionEventType;
+  path: string;
+  label?: string;
+  target?: string;
+  userId: string;
+  sessionId: string;
+  createdAt?: string;
+};
+
+export type InteractionTopItem = {
+  label: string;
+  count: number;
+};
+
+export type InteractionTrendItem = {
+  date: string;
+  events: number;
+  users: number;
+};
+
+export type InteractionAnalyticsSummary = {
+  rangeDays: number;
+  totals: {
+    totalEvents: number;
+    uniqueUsers: number;
+    pageViews: number;
+    clicks: number;
+    formSubmits: number;
+  };
+  topPages: InteractionTopItem[];
+  topActions: InteractionTopItem[];
+  trend: InteractionTrendItem[];
+  recentEvents: InteractionEventRecord[];
 };

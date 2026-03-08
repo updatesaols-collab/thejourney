@@ -3,18 +3,34 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Flame,
   Heart,
   Leaf,
   Search,
   Sparkles,
+  Star,
   Wind,
 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import TopBar from "@/components/TopBar";
-import type { CategoryRecord, HeroSlideRecord, ProgramRecord } from "@/lib/types";
+import type {
+  CategoryRecord,
+  FaqRecord,
+  HeroSlideRecord,
+  LibraryRecord,
+  ProgramRecord,
+  ReviewRecord,
+} from "@/lib/types";
 import { CATEGORY_ICON_MAP } from "@/lib/categoryIcons";
-import { getOrCreateUserId } from "@/lib/clientUser";
+import {
+  SEO_ADDRESS,
+  SEO_EMAIL,
+  SEO_PHONE,
+  SEO_WHATSAPP_URL,
+} from "@/lib/seo";
 
 const AUTH_SESSION_KEY = "journey_auth_session";
 const FALLBACK_CATEGORIES: CategoryRecord[] = [
@@ -39,6 +55,42 @@ const FALLBACK_CATEGORIES: CategoryRecord[] = [
   { id: "retreat", title: "Retreat", tag: "Retreat", imageUrl: "", iconName: "Leaf", order: 4 },
 ];
 
+const FALLBACK_INTENTS: LibraryRecord[] = [
+  {
+    id: "intent-stress",
+    kind: "intent",
+    title: "Release stress",
+    description: "",
+    link: "/library",
+    order: 0,
+  },
+  {
+    id: "intent-kriya",
+    kind: "intent",
+    title: "Learn Sudarshan Kriya",
+    description: "",
+    link: "/library",
+    order: 1,
+  },
+  {
+    id: "intent-sleep",
+    kind: "intent",
+    title: "Find solution for sleep",
+    description: "",
+    link: "/library",
+    order: 2,
+  },
+];
+
+type HomePayload = {
+  programs?: ProgramRecord[];
+  categories?: CategoryRecord[];
+  intents?: LibraryRecord[];
+  reviews?: ReviewRecord[];
+  faqs?: FaqRecord[];
+  heroSlides?: HeroSlideRecord[];
+};
+
 export default function Home() {
   const [greeting, setGreeting] = useState("Welcome");
   const [greetingTone, setGreetingTone] = useState<
@@ -52,6 +104,7 @@ export default function Home() {
   );
   const [programs, setPrograms] = useState<ProgramRecord[]>([]);
   const [categories, setCategories] = useState<CategoryRecord[]>([]);
+  const [intentPills, setIntentPills] = useState<LibraryRecord[]>(FALLBACK_INTENTS);
   const [heroSlides, setHeroSlides] = useState<HeroSlideRecord[]>([]);
   const [activeHeroIndex, setActiveHeroIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
@@ -64,6 +117,10 @@ export default function Home() {
   const [experienceMessage, setExperienceMessage] = useState("");
   const [feedbackStatus, setFeedbackStatus] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reviews, setReviews] = useState<ReviewRecord[]>([]);
+  const [faqs, setFaqs] = useState<FaqRecord[]>([]);
+  const [activeReviewIndex, setActiveReviewIndex] = useState(0);
+  const [openFaqId, setOpenFaqId] = useState("");
 
   const programIcon = (tag: string) => {
     switch (tag) {
@@ -114,9 +171,8 @@ export default function Home() {
         setIsProfileLoading(false);
         return;
       }
-      const userId = getOrCreateUserId();
       try {
-        const res = await fetch(`/api/profile?userId=${userId}`);
+        const res = await fetch("/api/profile");
         if (!res.ok) return;
         const data = await res.json();
         if (data?.fullName) {
@@ -128,41 +184,33 @@ export default function Home() {
       }
     };
 
-    const loadPrograms = async () => {
+    const loadHomeData = async () => {
       try {
-        const res = await fetch("/api/programs?limit=4");
-        if (!res.ok) return;
-        const data = (await res.json()) as ProgramRecord[];
-        setPrograms(data);
-      } catch {}
-    };
-
-    const loadCategories = async () => {
-      try {
-        const res = await fetch("/api/categories");
+        const res = await fetch("/api/home");
         if (!res.ok) {
           setCategories(FALLBACK_CATEGORIES);
+          setIntentPills(FALLBACK_INTENTS);
           return;
         }
-        const data = (await res.json()) as CategoryRecord[];
-        setCategories(data.length ? data : FALLBACK_CATEGORIES);
+        const data = (await res.json()) as HomePayload;
+        setPrograms(Array.isArray(data.programs) ? data.programs : []);
+        const fetchedCategories = Array.isArray(data.categories) ? data.categories : [];
+        setCategories(fetchedCategories.length ? fetchedCategories : FALLBACK_CATEGORIES);
+        const fetchedIntents = Array.isArray(data.intents) ? data.intents : [];
+        const sortedIntents = [...fetchedIntents].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        setIntentPills(sortedIntents.length ? sortedIntents : FALLBACK_INTENTS);
+        setReviews(Array.isArray(data.reviews) ? data.reviews : []);
+        setFaqs(Array.isArray(data.faqs) ? data.faqs : []);
+        const fetchedSlides = Array.isArray(data.heroSlides) ? data.heroSlides : [];
+        setHeroSlides(fetchedSlides.sort((a, b) => a.order - b.order));
       } catch {
         setCategories(FALLBACK_CATEGORIES);
+        setIntentPills(FALLBACK_INTENTS);
       }
     };
 
     loadProfile();
-    loadPrograms();
-    loadCategories();
-    const loadHeroSlides = async () => {
-      try {
-        const res = await fetch("/api/hero-slides?status=Active");
-        if (!res.ok) return;
-        const data = (await res.json()) as HeroSlideRecord[];
-        setHeroSlides(data.sort((a, b) => a.order - b.order));
-      } catch {}
-    };
-    loadHeroSlides();
+    loadHomeData();
   }, []);
 
   useEffect(() => {
@@ -177,6 +225,27 @@ export default function Home() {
     }, 6000);
     return () => clearInterval(timer);
   }, [heroSlides]);
+
+  useEffect(() => {
+    if (reviews.length <= 1) {
+      setActiveReviewIndex(0);
+      return;
+    }
+    const total = reviews.length;
+    setActiveReviewIndex((prev) => prev % total);
+    const timer = setInterval(() => {
+      setActiveReviewIndex((prev) => (prev + 1) % total);
+    }, 6500);
+    return () => clearInterval(timer);
+  }, [reviews]);
+
+  useEffect(() => {
+    if (!faqs.length) {
+      setOpenFaqId("");
+      return;
+    }
+    setOpenFaqId((current) => current || faqs[0].id);
+  }, [faqs]);
 
   useEffect(() => {
     const term = searchQuery.trim();
@@ -211,6 +280,7 @@ export default function Home() {
 
   const canShare = isLoggedIn;
   const showShareGate = !isProfileLoading && !isLoggedIn;
+  const activeReview = reviews[activeReviewIndex];
 
   const handleFeedbackSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -222,21 +292,18 @@ export default function Home() {
     setIsSubmitting(true);
     setFeedbackStatus("");
 
-    const userId = getOrCreateUserId();
     const payload =
       journalType === "journal"
         ? {
             type: "journal",
             prompt: "What felt spacious today?",
             message: journalEntry,
-            userId,
           }
         : {
             type: "experience",
             program: experienceProgram,
             rating: experienceRating ? Number(experienceRating) : undefined,
             message: experienceMessage,
-            userId,
           };
 
     try {
@@ -458,6 +525,37 @@ export default function Home() {
 
           <section className="section">
             <div className="section__head">
+              <h2>I want to..</h2>
+            </div>
+            <div className="intent-pills">
+              {intentPills.map((item) => {
+                const href = item.link?.trim() || "/library";
+                const isExternal =
+                  href.startsWith("http://") ||
+                  href.startsWith("https://") ||
+                  href.startsWith("mailto:");
+
+                return isExternal ? (
+                  <a
+                    key={item.id}
+                    className="intent-pill"
+                    href={href}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {item.title}
+                  </a>
+                ) : (
+                  <Link key={item.id} className="intent-pill" href={href}>
+                    {item.title}
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="section">
+            <div className="section__head">
               <h2>Reflection</h2>
             </div>
             <article className="surface journal">
@@ -571,6 +669,125 @@ export default function Home() {
                 )}
               </form>
             </article>
+          </section>
+
+          <section className="section">
+            <div className="section__head">
+              <h2>Reviews</h2>
+            </div>
+            {activeReview ? (
+              <article className="surface review-slider home-accent-card home-accent-card--review">
+                <div className="review-slider__header">
+                  <div className="review-slider__stars" aria-label={`${activeReview.rating} stars`}>
+                    {Array.from({ length: Math.max(1, Math.min(5, activeReview.rating)) }).map(
+                      (_, index) => (
+                        <Star key={`${activeReview.id}-star-${index}`} size={14} />
+                      )
+                    )}
+                  </div>
+                  <span className="review-slider__count">
+                    {activeReviewIndex + 1} / {reviews.length}
+                  </span>
+                </div>
+                <p className="review-slider__message">“{activeReview.message}”</p>
+                <div className="review-slider__meta">
+                  <p>
+                    {activeReview.name}
+                    {activeReview.role ? ` · ${activeReview.role}` : ""}
+                    {activeReview.location ? ` · ${activeReview.location}` : ""}
+                  </p>
+                  {activeReview.program && <span>{activeReview.program}</span>}
+                </div>
+                {reviews.length > 1 && (
+                  <div className="review-slider__controls">
+                    <button
+                      type="button"
+                      className="icon-button icon-button--soft"
+                      aria-label="Previous review"
+                      onClick={() =>
+                        setActiveReviewIndex((prev) =>
+                          prev === 0 ? reviews.length - 1 : prev - 1
+                        )
+                      }
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-button icon-button--soft"
+                      aria-label="Next review"
+                      onClick={() =>
+                        setActiveReviewIndex((prev) => (prev + 1) % reviews.length)
+                      }
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+                )}
+              </article>
+            ) : (
+              <article className="surface review-slider review-slider--empty home-accent-card home-accent-card--review">
+                <p>No reviews published yet.</p>
+              </article>
+            )}
+          </section>
+
+          <section className="section">
+            <div className="section__head">
+              <h2>FAQs</h2>
+            </div>
+            <div className="faq-list">
+              {faqs.length ? (
+                faqs.map((item) => {
+                  const isOpen = openFaqId === item.id;
+                  return (
+                    <article
+                      key={item.id}
+                      className={`surface faq-item home-accent-card home-accent-card--faq ${
+                        isOpen ? "is-open" : ""
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        className="faq-item__toggle"
+                        onClick={() => setOpenFaqId((prev) => (prev === item.id ? "" : item.id))}
+                        aria-expanded={isOpen}
+                      >
+                        <span>{item.question}</span>
+                        <ChevronDown size={18} />
+                      </button>
+                      {isOpen && (
+                        <div className="faq-item__body">
+                          <p>{item.answer}</p>
+                          {item.category && <span>{item.category}</span>}
+                        </div>
+                      )}
+                    </article>
+                  );
+                })
+              ) : (
+                <article className="surface faq-item faq-item--empty home-accent-card home-accent-card--faq">
+                  <p>No FAQs published yet.</p>
+                </article>
+              )}
+            </div>
+          </section>
+
+          <section className="home-seo-intro home-seo-intro--home surface">
+            <p className="home-seo-intro__eyebrow">Journey - The Art of Living Nepal</p>
+            <h1>Meditation, Yoga, Spirituality, Wellness and Ayurveda in Kathmandu</h1>
+            <p className="home-seo-intro__text">
+              Official Art of Living Nepal portal for guided meditation, Sudarshan Kriya,
+              breathwork, yoga and holistic wellbeing programs.
+            </p>
+            <address className="home-seo-intro__contact" aria-label="Contact details">
+              <span>{SEO_ADDRESS}</span>
+              <a href={`mailto:${SEO_EMAIL}`}>{SEO_EMAIL}</a>
+              <a href="tel:+9779810553757">{SEO_PHONE}</a>
+              <a href={SEO_WHATSAPP_URL} target="_blank" rel="noreferrer">
+                WhatsApp preferred
+              </a>
+            </address>
           </section>
         </div>
 
