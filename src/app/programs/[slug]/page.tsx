@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, MapPin, Sparkles } from "lucide-react";
+import { CalendarDays, ExternalLink, MapPin, Sparkles } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import TopBar from "@/components/TopBar";
 import { notFound } from "next/navigation";
@@ -23,9 +23,9 @@ export default async function ProgramPage({ params }: ProgramPageProps) {
   return (
     <div className="page">
       <main className="phone">
-        <TopBar title={program.title} showBack />
-
         <div className="content">
+          <TopBar title={program.title} showBack />
+
           <section className="program-hero surface">
             <div>
               <p className="eyebrow">Upcoming program</p>
@@ -37,10 +37,20 @@ export default async function ProgramPage({ params }: ProgramPageProps) {
                 <CalendarDays size={16} />
                 {program.day}, {program.time} · {program.duration}
               </span>
-              <span>
-                <MapPin size={16} />
-                {program.location}
-              </span>
+              {(program.location || program.venue) && (
+                <span>
+                  <MapPin size={16} />
+                  {program.location || program.venue}
+                </span>
+              )}
+              {program.mapUrl && (
+                <span>
+                  <ExternalLink size={16} />
+                  <a href={program.mapUrl} target="_blank" rel="noreferrer">
+                    View map
+                  </a>
+                </span>
+              )}
             </div>
             <div className="hero__actions">
               <a className="button button--primary" href="#register-modal">
@@ -54,7 +64,12 @@ export default async function ProgramPage({ params }: ProgramPageProps) {
 
           <section className="program-section">
             <h2>What to expect</h2>
-            <p>{program.description}</p>
+            {program.description && (
+              <div
+                className="richtext-display"
+                dangerouslySetInnerHTML={{ __html: program.description }}
+              />
+            )}
           </section>
 
           <section className="program-section">

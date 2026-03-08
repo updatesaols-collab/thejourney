@@ -1,4 +1,4 @@
-export type ProgramTag = "Breathwork" | "Meditation" | "Yoga" | "Sound" | "Retreat";
+export type ProgramTag = string;
 
 export type ProgramStatus = "Open" | "Filling" | "Closed";
 
@@ -12,6 +12,8 @@ export type ProgramRecord = {
   duration: string;
   tag: ProgramTag;
   location: string;
+  venue?: string;
+  mapUrl?: string;
   imageUrl?: string;
   summary: string;
   description: string;
@@ -19,6 +21,60 @@ export type ProgramRecord = {
   facilitator: string;
   seats: number;
   status: ProgramStatus;
+};
+
+export type NotificationStatus = "Active" | "Archived";
+
+export type NotificationRecord = {
+  id: string;
+  title: string;
+  message: string;
+  link?: string;
+  status: NotificationStatus;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type CategoryRecord = {
+  id: string;
+  title: string;
+  tag: ProgramTag;
+  imageUrl?: string;
+  iconName?: string;
+  order: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type HeroSlideStatus = "Active" | "Archived";
+
+export type HeroSlideRecord = {
+  id: string;
+  imageUrl: string;
+  link?: string;
+  order: number;
+  status: HeroSlideStatus;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type LibraryKind = "hero" | "cta" | "suggestion" | "article" | "quick";
+
+export type LibraryTone = "sleep" | "anxiety" | "morning" | "relief";
+
+export type LibraryRecord = {
+  id: string;
+  kind: LibraryKind;
+  title: string;
+  description: string;
+  eyebrow?: string;
+  tag?: string;
+  time?: string;
+  tone?: LibraryTone;
+  buttonLabel?: string;
+  order: number;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type RegistrationStatus = "Pending" | "Confirmed" | "Waitlist";
@@ -69,6 +125,7 @@ export type ProfileRecord = {
   userId: string;
   fullName: string;
   email: string;
+  avatarUrl: string;
   phone: string;
   address: string;
   dob: string;

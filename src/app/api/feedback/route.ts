@@ -75,7 +75,6 @@ export async function POST(request: NextRequest) {
   if (Array.isArray(payload)) {
     const docs: FeedbackDocument[] = [];
     for (const item of payload) {
-      // eslint-disable-next-line no-await-in-loop
       docs.push(await buildDoc(item));
     }
     const result = await collection.insertMany(docs);

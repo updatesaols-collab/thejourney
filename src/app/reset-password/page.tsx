@@ -54,8 +54,8 @@ export default function ResetPasswordPage() {
   return (
     <div className="page">
       <main className="phone">
-        <TopBar title="Reset password" showBack backHref="/profile" />
         <div className="content">
+          <TopBar title="Reset password" showBack backHref="/profile" />
           <section className="surface profile-card">
             <div>
               <p className="list-title">Choose a new password</p>

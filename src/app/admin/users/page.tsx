@@ -100,6 +100,7 @@ export default function UsersPage() {
           userId: form.userId,
           fullName: form.fullName,
           email: form.email,
+          avatarUrl: form.avatarUrl,
           phone: form.phone,
           address: form.address,
           dob: form.dob,
@@ -126,6 +127,7 @@ export default function UsersPage() {
       userId: profile.userId,
       fullName: profile.fullName,
       email: profile.email,
+      avatarUrl: profile.avatarUrl,
       phone: profile.phone,
       address: profile.address,
       dob: profile.dob,
@@ -138,6 +140,7 @@ export default function UsersPage() {
       "userId",
       "fullName",
       "email",
+      "avatarUrl",
       "phone",
       "address",
       "dob",
@@ -233,8 +236,24 @@ export default function UsersPage() {
             {filteredProfiles.map((profile) => (
               <tr key={profile.userId}>
                 <td>
-                  <strong>{profile.fullName || "Seeker"}</strong>
-                  <span>{profile.email || profile.userId}</span>
+                  <div className="admin__user-cell">
+                    <div className="admin__avatar">
+                      {profile.avatarUrl ? (
+                        <img src={profile.avatarUrl} alt={profile.fullName || "Profile"} />
+                      ) : (
+                        <span>
+                          {(profile.fullName || profile.email || "S")
+                            .trim()
+                            .charAt(0)
+                            .toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <strong>{profile.fullName || "Seeker"}</strong>
+                      <span>{profile.email || profile.userId}</span>
+                    </div>
+                  </div>
                 </td>
                 <td>{profile.phone || "—"}</td>
                 <td>
@@ -295,6 +314,12 @@ export default function UsersPage() {
                 ✕
               </button>
             </div>
+            {form.avatarUrl && (
+              <div className="admin__avatar-row">
+                <img src={form.avatarUrl} alt={form.fullName || "Profile"} />
+                <span>Profile photo</span>
+              </div>
+            )}
             <form onSubmit={handleSave} className="admin-modal__form">
               <label>
                 User ID

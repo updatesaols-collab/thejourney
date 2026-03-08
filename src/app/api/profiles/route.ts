@@ -19,6 +19,7 @@ const normalizeProfile = (doc: ProfileDocument & { _id: ObjectId }) => ({
   userId: doc.userId,
   fullName: doc.fullName || "",
   email: doc.email || "",
+  avatarUrl: doc.avatarUrl || "",
   phone: doc.phone || "",
   address: doc.address || "",
   dob: doc.dob || "",

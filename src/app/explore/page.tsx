@@ -1,18 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { CalendarDays, MapPin, Search } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import TopBar from "@/components/TopBar";
 import Link from "next/link";
 import type { ProgramRecord } from "@/lib/types";
 
-const FILTERS = ["All", "Breathwork", "Meditation", "Yoga", "Sound", "Retreat"];
-
 export default function ExplorePage() {
   const [query, setQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState("All");
   const [programs, setPrograms] = useState<ProgramRecord[]>([]);
+  const searchParams = useSearchParams();
+  const tagFromQuery = searchParams.get("tag") || "";
+  const [activeFilter, setActiveFilter] = useState(tagFromQuery || "All");
+
+  const filters = useMemo(() => {
+    const options = new Set<string>();
+    programs.forEach((program) => options.add(program.tag));
+    return ["All", ...Array.from(options)];
+  }, [programs]);
 
   const filteredPrograms = useMemo(() => {
     return programs.filter((program) => {
@@ -24,6 +31,9 @@ export default function ExplorePage() {
       return matchesFilter && matchesQuery;
     });
   }, [activeFilter, programs, query]);
+
+  const activeFilterAvailable =
+    activeFilter === "All" || filters.includes(activeFilter);
 
   useEffect(() => {
     const loadPrograms = async () => {
@@ -40,9 +50,9 @@ export default function ExplorePage() {
   return (
     <div className="page">
       <main className="phone">
-        <TopBar title="Explore programs" showBack variant="explore" />
-
         <div className="content">
+          <TopBar title="Explore programs" showBack variant="explore" />
+
           <section className="searchbar">
             <Search size={18} />
             <input
@@ -54,7 +64,7 @@ export default function ExplorePage() {
           </section>
 
           <section className="filter-row">
-            {FILTERS.map((filter) => (
+            {filters.map((filter) => (
               <button
                 key={filter}
                 className={`filter-chip ${
@@ -66,6 +76,15 @@ export default function ExplorePage() {
                 {filter}
               </button>
             ))}
+            {!activeFilterAvailable && (
+              <button
+                className="filter-chip filter-chip--active"
+                type="button"
+                onClick={() => setActiveFilter("All")}
+              >
+                {activeFilter}
+              </button>
+            )}
           </section>
 
           <section className="section">
@@ -96,7 +115,7 @@ export default function ExplorePage() {
                         </span>
                         <span>
                           <MapPin size={14} />
-                          {program.location}
+                          {program.location || program.venue}
                         </span>
                       </div>
                     </div>

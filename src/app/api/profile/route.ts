@@ -19,6 +19,7 @@ const normalizeProfile = (doc: ProfileDocument & { _id: ObjectId }) => ({
   userId: doc.userId,
   fullName: doc.fullName || "",
   email: doc.email || "",
+  avatarUrl: doc.avatarUrl || "",
   phone: doc.phone || "",
   address: doc.address || "",
   dob: doc.dob || "",
@@ -45,6 +46,7 @@ export async function GET(request: NextRequest) {
       userId,
       fullName: "",
       email: "",
+      avatarUrl: "",
       phone: "",
       address: "",
       dob: "",
@@ -69,6 +71,7 @@ const upsertProfile = async (payload: Partial<ProfileRecord>) => {
 
   if (payload.fullName !== undefined) updates.fullName = payload.fullName;
   if (payload.email !== undefined) updates.email = payload.email;
+  if (payload.avatarUrl !== undefined) updates.avatarUrl = payload.avatarUrl;
   if (payload.phone !== undefined) updates.phone = payload.phone;
   if (payload.address !== undefined) updates.address = payload.address;
   if (payload.dob !== undefined) updates.dob = payload.dob;

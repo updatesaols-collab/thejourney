@@ -3,11 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BookOpen,
   CalendarDays,
   ChartLine,
   ClipboardList,
   LayoutDashboard,
+  LayoutGrid,
+  Images,
   MessageSquare,
+  Bell,
   Settings,
   UserRound,
 } from "lucide-react";
@@ -16,7 +20,11 @@ const NAV_ITEMS = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/users", label: "Users", icon: UserRound },
   { href: "/admin/registrations", label: "Registrations", icon: ClipboardList },
+  { href: "/admin/categories", label: "Categories", icon: LayoutGrid },
+  { href: "/admin/hero-slides", label: "Hero Slides", icon: Images },
   { href: "/admin/programs", label: "Programs", icon: CalendarDays },
+  { href: "/admin/library", label: "Library", icon: BookOpen },
+  { href: "/admin/notifications", label: "Notifications", icon: Bell },
   { href: "/admin/feedback", label: "Feedback", icon: MessageSquare },
   { href: "/admin/analytics", label: "Analytics", icon: ChartLine },
   { href: "/admin/settings", label: "Settings", icon: Settings },

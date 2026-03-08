@@ -1,10 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import {
+  Camera,
+  CalendarDays,
+  ChevronRight,
+  LogOut,
+  MessageSquare,
+  Settings,
+  Shield,
+  User2,
+} from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import TopBar from "@/components/TopBar";
-import type { ProfileSettings, RegistrationRecord } from "@/lib/types";
 import { getOrCreateUserId } from "@/lib/clientUser";
 
 const AUTH_SESSION_KEY = "journey_auth_session";
@@ -15,25 +24,34 @@ type AuthSession = {
 };
 
 const normalizeEmail = (value: string) => value.trim().toLowerCase();
+const getStoredSession = (): AuthSession | null => {
+  if (typeof window === "undefined") return null;
+  const stored = localStorage.getItem(AUTH_SESSION_KEY);
+  if (!stored) return null;
+  try {
+    const parsed = JSON.parse(stored) as AuthSession;
+    return parsed?.email ? parsed : null;
+  } catch {
+    return null;
+  }
+};
 
 export default function ProfilePage() {
   const [savedName, setSavedName] = useState("Seeker");
   const [profile, setProfile] = useState({
     fullName: "",
     email: "",
+    avatarUrl: "",
     phone: "",
     address: "",
     dob: "",
   });
-  const [settings, setSettings] = useState<ProfileSettings>({
-    emailUpdates: true,
-    smsReminders: false,
-    weeklyDigest: true,
-  });
-  const [status, setStatus] = useState("");
-  const [authSession, setAuthSession] = useState<AuthSession | null>(null);
+  const [avatarStatus, setAvatarStatus] = useState("");
+  const [authSession, setAuthSession] = useState<AuthSession | null>(() =>
+    getStoredSession()
+  );
   const [authMode, setAuthMode] = useState<"login" | "create" | "forgot">("login");
-  const [loginEmail, setLoginEmail] = useState("");
+  const [loginEmail, setLoginEmail] = useState(() => getStoredSession()?.email || "");
   const [loginPassword, setLoginPassword] = useState("");
   const [authStatus, setAuthStatus] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
@@ -42,50 +60,19 @@ export default function ProfilePage() {
   const [signupStatus, setSignupStatus] = useState("");
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotStatus, setForgotStatus] = useState("");
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [securityStatus, setSecurityStatus] = useState("");
-  const [registrations, setRegistrations] = useState<RegistrationRecord[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isLoggedIn = Boolean(authSession?.email);
-  const isProfileComplete = Boolean(
-    profile.fullName.trim() &&
-      profile.phone.trim() &&
-      profile.address.trim() &&
-      profile.dob.trim()
-  );
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(AUTH_SESSION_KEY);
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored) as AuthSession;
-          if (parsed?.email) {
-            setAuthSession(parsed);
-            setLoginEmail(parsed.email);
-          }
-        } catch {}
-      }
-    }
-
-  }, []);
 
   useEffect(() => {
     if (!authSession?.email) {
       setProfile({
         fullName: "",
         email: "",
+        avatarUrl: "",
         phone: "",
         address: "",
         dob: "",
       });
-      setSettings({
-        emailUpdates: true,
-        smsReminders: false,
-        weeklyDigest: true,
-      });
-      setRegistrations([]);
       setSavedName("Seeker");
       return;
     }
@@ -100,6 +87,7 @@ export default function ProfilePage() {
         setProfile({
           fullName: data.fullName ?? "",
           email: data.email ?? "",
+          avatarUrl: data.avatarUrl ?? "",
           phone: data.phone ?? "",
           address: data.address ?? "",
           dob: data.dob ?? "",
@@ -107,23 +95,10 @@ export default function ProfilePage() {
         if (data.fullName) {
           setSavedName(data.fullName);
         }
-        if (data.settings) {
-          setSettings(data.settings);
-        }
-      } catch {}
-    };
-
-    const loadRegistrations = async () => {
-      try {
-        const res = await fetch(`/api/registrations?userId=${userId}`);
-        if (!res.ok) return;
-        const data = (await res.json()) as RegistrationRecord[];
-        setRegistrations(data);
       } catch {}
     };
 
     loadProfile();
-    loadRegistrations();
   }, [authSession?.email]);
 
   useEffect(() => {
@@ -252,500 +227,327 @@ export default function ProfilePage() {
     setAuthMode("login");
   };
 
-  const handleChangePassword = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!authSession?.email) return;
-    setSecurityStatus("");
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      setSecurityStatus("Fill in all password fields.");
+  const handleAvatarChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!isLoggedIn) {
+      setAvatarStatus("Please log in to upload a photo.");
       return;
     }
-    if (newPassword !== confirmPassword) {
-      setSecurityStatus("New passwords do not match.");
-      return;
-    }
+    setAvatarStatus("Uploading photo...");
     try {
-      const res = await fetch("/api/auth/change-password", {
+      const signRes = await fetch("/api/cloudinary/sign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: authSession.email,
-          currentPassword,
-          newPassword,
-        }),
+        body: JSON.stringify({ folder: "the-journey/avatars" }),
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({ message: "" }));
-        setSecurityStatus(data.message || "Unable to update password.");
+      if (!signRes.ok) {
+        setAvatarStatus("Unable to upload photo.");
         return;
       }
-      setSecurityStatus("Password updated.");
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-    } catch {
-      setSecurityStatus("Unable to update password.");
-    }
-  };
+      const data = (await signRes.json()) as {
+        cloudName: string;
+        apiKey: string;
+        timestamp: number;
+        signature: string;
+        folder: string;
+      };
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("api_key", data.apiKey);
+      formData.append("timestamp", String(data.timestamp));
+      formData.append("signature", data.signature);
+      formData.append("folder", data.folder);
+      const uploadRes = await fetch(
+        `https://api.cloudinary.com/v1_1/${data.cloudName}/image/upload`,
+        { method: "POST", body: formData }
+      );
+      if (!uploadRes.ok) {
+        setAvatarStatus("Unable to upload photo.");
+        return;
+      }
+      const uploadData = (await uploadRes.json()) as {
+        secure_url?: string;
+        url?: string;
+      };
+      const avatarUrl = uploadData.secure_url || uploadData.url || "";
+      if (!avatarUrl) {
+        setAvatarStatus("Unable to upload photo.");
+        return;
+      }
+      setProfile((prev) => ({ ...prev, avatarUrl }));
 
-  const handleProfileSave = async () => {
-    if (!isLoggedIn) return;
-    const userId = getOrCreateUserId();
-    const trimmed = profile.fullName.trim();
-    const payload = {
-      ...profile,
-      email: authSession?.email || profile.email,
-      fullName: trimmed,
-      userId,
-      settings,
-    };
-
-    try {
-      const res = await fetch("/api/profile", {
+      const userId = getOrCreateUserId();
+      await fetch("/api/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ userId, avatarUrl }),
       });
-      if (res.ok) {
-        if (trimmed) {
-          localStorage.setItem("journey_profile_name", trimmed);
-          setSavedName(trimmed);
-        }
-        setStatus("Profile updated");
-      } else {
-        setStatus("Unable to update profile");
-      }
+      setAvatarStatus("Profile photo updated.");
     } catch {
-      setStatus("Unable to update profile");
+      setAvatarStatus("Unable to upload photo.");
+    } finally {
+      event.target.value = "";
+      setTimeout(() => setAvatarStatus(""), 2000);
     }
-    setTimeout(() => setStatus(""), 2000);
-  };
-
-  const handleSettingsSave = async () => {
-    if (!isLoggedIn) return;
-    const userId = getOrCreateUserId();
-    try {
-      const res = await fetch("/api/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, settings }),
-      });
-      if (res.ok) {
-        setStatus("Settings saved");
-      } else {
-        setStatus("Unable to save settings");
-      }
-    } catch {
-      setStatus("Unable to save settings");
-    }
-    setTimeout(() => setStatus(""), 2000);
   };
 
   return (
     <div className="page profile-page">
       <main className="phone">
-        <TopBar title="Profile" showBack />
         <div className="content">
-          {status && <div className="status-pill surface">{status}</div>}
-
-          <section className="section">
-            <div className="section__head">
-              <h2>Account access</h2>
-            </div>
-            <div className="surface profile-card">
-              {isLoggedIn ? (
-                <>
-                  <div className="profile-header">
-                    <div>
-                      <p className="list-title">Signed in</p>
-                      <p className="list-meta">{authSession?.email}</p>
-                    </div>
-                    <button className="button button--ghost" onClick={handleLogout}>
-                      Log out
-                    </button>
-                  </div>
-                  {authStatus && <p className="list-meta">{authStatus}</p>}
-                </>
-              ) : (
-                <>
-                  <div>
-                    <p className="list-title">Log in to your profile</p>
-                    <p className="list-meta">
-                      Log in to edit your profile, settings, and security.
-                    </p>
-                  </div>
-                  {authMode === "login" && (
-                    <>
-                      <form className="profile-form" onSubmit={handleLogin}>
-                        <label>
-                          Email
-                          <input
-                            className="text-input"
-                            value={loginEmail}
-                            onChange={(event) => setLoginEmail(event.target.value)}
-                            placeholder="you@example.com"
-                            type="email"
-                            autoComplete="email"
-                          />
-                        </label>
-                        <label>
-                          Password
-                          <input
-                            className="text-input"
-                            value={loginPassword}
-                            onChange={(event) => setLoginPassword(event.target.value)}
-                            placeholder="Enter your password"
-                            type="password"
-                            autoComplete="current-password"
-                          />
-                        </label>
-                        <div className="auth-actions">
-                          <button className="button button--primary" type="submit">
-                            Log in
-                          </button>
-                        </div>
-                      </form>
-                      {authStatus && <p className="list-meta">{authStatus}</p>}
-                      <div className="auth-links">
-                        <button
-                          className="link-button"
-                          type="button"
-                          onClick={() => setAuthMode("create")}
-                        >
-                          Create account
-                        </button>
-                        <button
-                          className="link-button"
-                          type="button"
-                          onClick={() => setAuthMode("forgot")}
-                        >
-                          Forgot password?
-                        </button>
-                      </div>
-                    </>
-                  )}
-                  {authMode === "create" && (
-                    <>
-                      <form className="profile-form" onSubmit={handleCreateAccount}>
-                        <label>
-                          Email
-                          <input
-                            className="text-input"
-                            value={signupEmail}
-                            onChange={(event) => setSignupEmail(event.target.value)}
-                            placeholder="you@example.com"
-                            type="email"
-                            autoComplete="email"
-                          />
-                        </label>
-                        <label>
-                          Password
-                          <input
-                            className="text-input"
-                            value={signupPassword}
-                            onChange={(event) => setSignupPassword(event.target.value)}
-                            placeholder="Create a password"
-                            type="password"
-                            autoComplete="new-password"
-                          />
-                        </label>
-                        <label>
-                          Confirm password
-                          <input
-                            className="text-input"
-                            value={signupConfirm}
-                            onChange={(event) => setSignupConfirm(event.target.value)}
-                            placeholder="Confirm your password"
-                            type="password"
-                            autoComplete="new-password"
-                          />
-                        </label>
-                        <div className="auth-actions">
-                          <button className="button button--primary" type="submit">
-                            Create account
-                          </button>
-                        </div>
-                      </form>
-                      {signupStatus && <p className="list-meta">{signupStatus}</p>}
-                      <div className="auth-links">
-                        <button
-                          className="link-button"
-                          type="button"
-                          onClick={() => setAuthMode("login")}
-                        >
-                          Already have an account? Log in
-                        </button>
-                      </div>
-                    </>
-                  )}
-                  {authMode === "forgot" && (
-                    <>
-                      <form className="profile-form" onSubmit={handleForgotPassword}>
-                        <label>
-                          Email
-                          <input
-                            className="text-input"
-                            value={forgotEmail}
-                            onChange={(event) => setForgotEmail(event.target.value)}
-                            placeholder="you@example.com"
-                            type="email"
-                            autoComplete="email"
-                          />
-                        </label>
-                        <div className="auth-actions">
-                          <button className="button button--primary" type="submit">
-                            Send reset link
-                          </button>
-                        </div>
-                      </form>
-                      {forgotStatus && <p className="list-meta">{forgotStatus}</p>}
-                      <p className="list-meta">
-                        We’ll email you a secure link to reset your password.
-                      </p>
-                      <div className="auth-links">
-                        <button
-                          className="link-button"
-                          type="button"
-                          onClick={() => setAuthMode("login")}
-                        >
-                          Back to login
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </>
-              )}
-            </div>
-          </section>
+          <TopBar title="Profile" showBack />
 
           {isLoggedIn && (
             <>
               <section className="section">
-                <div className="section__head">
-                  <h2>Personal details</h2>
-                </div>
-                <div className="surface profile-card">
-              <div className="profile-header">
-                <div>
-                  <p className="list-title">Profile information</p>
-                  <p className="list-meta">Currently: {savedName}</p>
-                  {!isProfileComplete && (
-                    <p className="list-meta">
-                      Complete your profile to personalize reminders and resources.
-                    </p>
-                  )}
-                </div>
-                <button className="button button--primary" onClick={handleProfileSave}>
-                  Update profile
-                </button>
-              </div>
-
-                  <div className="profile-grid">
-                    <label>
-                      Full name
+                <div className="surface profile-hero">
+                  <div className="profile-hero__avatar">
+                    {profile.avatarUrl ? (
+                      <img src={profile.avatarUrl} alt={profile.fullName || "Profile"} />
+                    ) : (
+                      <span>
+                        {(profile.fullName || authSession?.email || "S")
+                          .trim()
+                          .charAt(0)
+                          .toUpperCase()}
+                      </span>
+                    )}
+                    <label className="profile-hero__upload" aria-label="Upload photo">
                       <input
-                        className="text-input"
-                        value={profile.fullName}
-                        onChange={(event) =>
-                          setProfile({ ...profile, fullName: event.target.value })
-                        }
-                        placeholder="Enter your full name"
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarChange}
                       />
-                    </label>
-                <label>
-                  Email
-                  <input
-                    className="text-input"
-                    value={profile.email}
-                    placeholder="Enter your email"
-                    type="email"
-                    disabled
-                  />
-                </label>
-                    <label>
-                      Phone
-                      <input
-                        className="text-input"
-                        value={profile.phone}
-                        onChange={(event) =>
-                          setProfile({ ...profile, phone: event.target.value })
-                        }
-                        placeholder="Enter your phone"
-                        type="tel"
-                      />
-                    </label>
-                    <label>
-                      Address
-                      <input
-                        className="text-input"
-                        value={profile.address}
-                        onChange={(event) =>
-                          setProfile({ ...profile, address: event.target.value })
-                        }
-                        placeholder="Enter your address"
-                      />
-                    </label>
-                    <label>
-                      Date of birth
-                      <input
-                        className="text-input"
-                        value={profile.dob}
-                        onChange={(event) =>
-                          setProfile({ ...profile, dob: event.target.value })
-                        }
-                        type="date"
-                      />
+                      <Camera size={14} />
                     </label>
                   </div>
-                </div>
-              </section>
-
-              <section className="section">
-                <div className="section__head">
-                  <h2>My registrations</h2>
-                  <Link className="link" href="/explore">
-                    View all
+                  <div className="profile-hero__meta">
+                    <p className="profile-hero__name">
+                      {profile.fullName || savedName || "Seeker"}
+                    </p>
+                    <p className="profile-hero__handle">
+                      {authSession?.email || profile.email}
+                    </p>
+                    {avatarStatus && <p className="list-meta">{avatarStatus}</p>}
+                  </div>
+                  <Link className="button button--coral" href="/profile/details">
+                    Edit profile
                   </Link>
                 </div>
-                <div className="program-list">
-                  {registrations.length === 0 ? (
-                    <div className="empty surface">
-                      <p>No registrations yet.</p>
-                      <Link className="button button--ghost" href="/explore">
-                        Browse programs
-                      </Link>
-                    </div>
-                  ) : (
-                    registrations.slice(0, 2).map((item) => (
-                      <article key={item.id} className="program-row surface">
-                        <div className="program-row__main">
-                          <p className="list-title">{item.programTitle}</p>
-                          <p className="list-meta">
-                            {[item.programDay, item.programDate]
-                              .filter(Boolean)
-                              .join(", ")}
-                            {item.programTime ? ` · ${item.programTime}` : ""}
-                          </p>
-                        </div>
-                        <div className="program-row__time">
-                          <span>{item.programDuration || "Session"}</span>
-                          {item.programTag && (
-                            <span className="tag">{item.programTag}</span>
-                          )}
-                        </div>
-                        {item.programSlug && (
-                          <Link
-                            className="mini-button program-row__cta"
-                            href={`/programs/${item.programSlug}`}
-                          >
-                            View details
-                          </Link>
-                        )}
-                      </article>
-                    ))
-                  )}
-                </div>
               </section>
 
               <section className="section">
-                <div className="section__head">
-                  <h2>Settings</h2>
-                </div>
-                <div className="surface settings-card">
-                  <label className="toggle-row">
-                    <input
-                      type="checkbox"
-                      checked={settings.emailUpdates}
-                      onChange={(event) =>
-                        setSettings({
-                          ...settings,
-                          emailUpdates: event.target.checked,
-                        })
-                      }
-                    />
-                    <span>Email updates</span>
-                  </label>
-                  <label className="toggle-row">
-                    <input
-                      type="checkbox"
-                      checked={settings.smsReminders}
-                      onChange={(event) =>
-                        setSettings({
-                          ...settings,
-                          smsReminders: event.target.checked,
-                        })
-                      }
-                    />
-                    <span>SMS reminders</span>
-                  </label>
-                  <label className="toggle-row">
-                    <input
-                      type="checkbox"
-                      checked={settings.weeklyDigest}
-                      onChange={(event) =>
-                        setSettings({
-                          ...settings,
-                          weeklyDigest: event.target.checked,
-                        })
-                      }
-                    />
-                    <span>Weekly digest</span>
-                  </label>
-                  <button className="button button--secondary" onClick={handleSettingsSave}>
-                    Save settings
+                <div className="surface profile-actions">
+                  <Link className="profile-action" href="/profile/details">
+                    <span className="profile-action__icon">
+                      <User2 size={18} />
+                    </span>
+                    <span className="profile-action__label">Personal details</span>
+                    <ChevronRight size={18} className="profile-action__chevron" />
+                  </Link>
+                  <Link className="profile-action" href="/profile/registrations">
+                    <span className="profile-action__icon">
+                      <CalendarDays size={18} />
+                    </span>
+                    <span className="profile-action__label">My registrations</span>
+                    <ChevronRight size={18} className="profile-action__chevron" />
+                  </Link>
+                  <Link className="profile-action" href="/profile/reflections">
+                    <span className="profile-action__icon">
+                      <MessageSquare size={18} />
+                    </span>
+                    <span className="profile-action__label">My reflections</span>
+                    <ChevronRight size={18} className="profile-action__chevron" />
+                  </Link>
+                  <Link className="profile-action" href="/profile/settings">
+                    <span className="profile-action__icon">
+                      <Settings size={18} />
+                    </span>
+                    <span className="profile-action__label">Settings</span>
+                    <ChevronRight size={18} className="profile-action__chevron" />
+                  </Link>
+                  <Link className="profile-action" href="/profile/security">
+                    <span className="profile-action__icon">
+                      <Shield size={18} />
+                    </span>
+                    <span className="profile-action__label">Security</span>
+                    <ChevronRight size={18} className="profile-action__chevron" />
+                  </Link>
+                  <button
+                    className="profile-action profile-action--danger"
+                    type="button"
+                    onClick={handleLogout}
+                  >
+                    <span className="profile-action__icon">
+                      <LogOut size={18} />
+                    </span>
+                    <span className="profile-action__label">Log out</span>
+                    <ChevronRight size={18} className="profile-action__chevron" />
                   </button>
-                </div>
-              </section>
-
-              <section className="section">
-                <div className="section__head">
-                  <h2>Security</h2>
-                </div>
-                <div className="surface profile-card">
-                  <form className="profile-form" onSubmit={handleChangePassword}>
-                    <div className="profile-grid">
-                      <label>
-                        Current password
-                        <input
-                          className="text-input"
-                          type="password"
-                          value={currentPassword}
-                          onChange={(event) => setCurrentPassword(event.target.value)}
-                          autoComplete="current-password"
-                        />
-                      </label>
-                      <label>
-                        New password
-                        <input
-                          className="text-input"
-                          type="password"
-                          value={newPassword}
-                          onChange={(event) => setNewPassword(event.target.value)}
-                          autoComplete="new-password"
-                        />
-                      </label>
-                      <label>
-                        Confirm new password
-                        <input
-                          className="text-input"
-                          type="password"
-                          value={confirmPassword}
-                          onChange={(event) => setConfirmPassword(event.target.value)}
-                          autoComplete="new-password"
-                        />
-                      </label>
-                    </div>
-                    <div className="auth-actions">
-                      <button className="button button--primary" type="submit">
-                        Change password
-                      </button>
-                    </div>
-                    {securityStatus && <p className="list-meta">{securityStatus}</p>}
-                  </form>
                 </div>
               </section>
             </>
           )}
+
+          {!isLoggedIn && (
+            <section className="section" id="profile-access">
+              <div className="section__head">
+                <h2>Account access</h2>
+              </div>
+              <div className="surface profile-card">
+                <div>
+                  <p className="list-title">Log in to your profile</p>
+                  <p className="list-meta">
+                    Log in to edit your profile, settings, and security.
+                  </p>
+                </div>
+                {authMode === "login" && (
+                  <>
+                    <form className="profile-form" onSubmit={handleLogin}>
+                      <label>
+                        Email
+                        <input
+                          className="text-input"
+                          value={loginEmail}
+                          onChange={(event) => setLoginEmail(event.target.value)}
+                          placeholder="you@example.com"
+                          type="email"
+                          autoComplete="email"
+                        />
+                      </label>
+                      <label>
+                        Password
+                        <input
+                          className="text-input"
+                          value={loginPassword}
+                          onChange={(event) => setLoginPassword(event.target.value)}
+                          placeholder="Enter your password"
+                          type="password"
+                          autoComplete="current-password"
+                        />
+                      </label>
+                      <div className="auth-actions">
+                        <button className="button button--primary" type="submit">
+                          Log in
+                        </button>
+                      </div>
+                    </form>
+                    {authStatus && <p className="list-meta">{authStatus}</p>}
+                    <div className="auth-links">
+                      <button
+                        className="link-button"
+                        type="button"
+                        onClick={() => setAuthMode("create")}
+                      >
+                        Create account
+                      </button>
+                      <button
+                        className="link-button"
+                        type="button"
+                        onClick={() => setAuthMode("forgot")}
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+                  </>
+                )}
+                {authMode === "create" && (
+                  <>
+                    <form className="profile-form" onSubmit={handleCreateAccount}>
+                      <label>
+                        Email
+                        <input
+                          className="text-input"
+                          value={signupEmail}
+                          onChange={(event) => setSignupEmail(event.target.value)}
+                          placeholder="you@example.com"
+                          type="email"
+                          autoComplete="email"
+                        />
+                      </label>
+                      <label>
+                        Password
+                        <input
+                          className="text-input"
+                          value={signupPassword}
+                          onChange={(event) => setSignupPassword(event.target.value)}
+                          placeholder="Create a password"
+                          type="password"
+                          autoComplete="new-password"
+                        />
+                      </label>
+                      <label>
+                        Confirm password
+                        <input
+                          className="text-input"
+                          value={signupConfirm}
+                          onChange={(event) => setSignupConfirm(event.target.value)}
+                          placeholder="Confirm your password"
+                          type="password"
+                          autoComplete="new-password"
+                        />
+                      </label>
+                      <div className="auth-actions">
+                        <button className="button button--primary" type="submit">
+                          Create account
+                        </button>
+                      </div>
+                    </form>
+                    {signupStatus && <p className="list-meta">{signupStatus}</p>}
+                    <div className="auth-links">
+                      <button
+                        className="link-button"
+                        type="button"
+                        onClick={() => setAuthMode("login")}
+                      >
+                        Already have an account? Log in
+                      </button>
+                    </div>
+                  </>
+                )}
+                {authMode === "forgot" && (
+                  <>
+                    <form className="profile-form" onSubmit={handleForgotPassword}>
+                      <label>
+                        Email
+                        <input
+                          className="text-input"
+                          value={forgotEmail}
+                          onChange={(event) => setForgotEmail(event.target.value)}
+                          placeholder="you@example.com"
+                          type="email"
+                          autoComplete="email"
+                        />
+                      </label>
+                      <div className="auth-actions">
+                        <button className="button button--primary" type="submit">
+                          Send reset link
+                        </button>
+                      </div>
+                    </form>
+                    {forgotStatus && <p className="list-meta">{forgotStatus}</p>}
+                    <p className="list-meta">
+                      We’ll email you a secure link to reset your password.
+                    </p>
+                    <div className="auth-links">
+                      <button
+                        className="link-button"
+                        type="button"
+                        onClick={() => setAuthMode("login")}
+                      >
+                        Back to login
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </section>
+          )}
+
         </div>
         <BottomNav active="profile" />
       </main>

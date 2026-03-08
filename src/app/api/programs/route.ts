@@ -25,7 +25,6 @@ export async function POST(request: NextRequest) {
   if (Array.isArray(payload)) {
     const results = [];
     for (const item of payload) {
-      // eslint-disable-next-line no-await-in-loop
       results.push(await createProgram(item));
     }
     return NextResponse.json(results, { status: 201 });

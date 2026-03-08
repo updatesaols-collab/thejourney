@@ -5,8 +5,10 @@ export type Program = {
   day: string;
   time: string;
   duration: string;
-  tag: "Breathwork" | "Meditation" | "Yoga" | "Sound" | "Retreat";
+  tag: string;
   location: string;
+  venue?: string;
+  mapUrl?: string;
   imageUrl?: string;
   summary: string;
   description: string;

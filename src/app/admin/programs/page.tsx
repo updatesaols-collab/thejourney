@@ -5,8 +5,10 @@ import { Download, Pencil, Plus, Trash2, Upload } from "lucide-react";
 import AdminShell from "../_components/AdminShell";
 import type { ProgramRecord } from "@/lib/types";
 import { downloadCsv, parseCsv } from "../utils";
+import RichTextEditor from "@/components/RichTextEditor";
 
 const STATUS_FILTERS = ["All", "Open", "Filling", "Closed"] as const;
+const DEFAULT_TAGS = ["Breathwork", "Meditation", "Yoga", "Sound", "Retreat"];
 
 export default function ProgramsPage() {
   const [programs, setPrograms] = useState<ProgramRecord[]>([]);
@@ -25,6 +27,7 @@ export default function ProgramsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [mode, setMode] = useState<"add" | "edit">("add");
   const [editingSlug, setEditingSlug] = useState("");
+  const [highlightsInput, setHighlightsInput] = useState("");
   const [form, setForm] = useState<ProgramRecord>({
     id: "",
     slug: "",
@@ -35,6 +38,8 @@ export default function ProgramsPage() {
     duration: "",
     tag: "Meditation",
     location: "",
+    venue: "",
+    mapUrl: "",
     imageUrl: "",
     summary: "",
     description: "",
@@ -70,6 +75,12 @@ export default function ProgramsPage() {
     return ["All", ...Array.from(options)];
   }, [programs]);
 
+  const tagSuggestions = useMemo(() => {
+    const options = new Set<string>(DEFAULT_TAGS);
+    programs.forEach((item) => options.add(item.tag));
+    return Array.from(options);
+  }, [programs]);
+
   const filteredPrograms = useMemo(() => {
     const term = query.toLowerCase();
     return programs.filter((item) => {
@@ -90,6 +101,7 @@ export default function ProgramsPage() {
     setMode(nextMode);
     setEditingSlug(item?.slug || "");
     setImageStatus("");
+    setHighlightsInput(item?.highlights?.join(", ") ?? "");
     setForm(
       item ?? {
         id: "",
@@ -101,6 +113,8 @@ export default function ProgramsPage() {
         duration: "",
         tag: "Meditation",
         location: "",
+        venue: "",
+        mapUrl: "",
         imageUrl: "",
         summary: "",
         description: "",
@@ -115,12 +129,20 @@ export default function ProgramsPage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    const parsedHighlights = highlightsInput
+      .split(/,|\n/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const payload: ProgramRecord = {
+      ...form,
+      highlights: parsedHighlights,
+    };
     try {
       if (mode === "add") {
         const res = await fetch("/api/programs", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify(payload),
         });
         if (res.ok) {
           const created = (await res.json()) as ProgramRecord;
@@ -134,7 +156,7 @@ export default function ProgramsPage() {
         const res = await fetch(`/api/programs/${editingSlug}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify(payload),
         });
         if (res.ok) {
           const updated = (await res.json()) as ProgramRecord;
@@ -177,6 +199,8 @@ export default function ProgramsPage() {
       "duration",
       "tag",
       "location",
+      "venue",
+      "mapUrl",
       "imageUrl",
       "summary",
       "description",
@@ -200,6 +224,8 @@ export default function ProgramsPage() {
       duration: row.duration || "",
       tag: (row.tag as ProgramRecord["tag"]) || "Meditation",
       location: row.location || "",
+      venue: row.venue || "",
+      mapUrl: row.mapUrl || row.map || "",
       imageUrl: row.imageUrl || row.image || "",
       summary: row.summary || "",
       description: row.description || "",
@@ -494,29 +520,41 @@ export default function ProgramsPage() {
               </label>
               <label>
                 Tag
-                <select
+                <input
+                  list="program-tags"
                   value={form.tag}
                   onChange={(event) =>
                     setForm({
                       ...form,
-                      tag: event.target.value as ProgramRecord["tag"],
+                      tag: event.target.value,
                     })
                   }
-                >
-                  <option value="Breathwork">Breathwork</option>
-                  <option value="Meditation">Meditation</option>
-                  <option value="Yoga">Yoga</option>
-                  <option value="Sound">Sound</option>
-                  <option value="Retreat">Retreat</option>
-                </select>
+                  placeholder="Type or select a tag"
+                />
+                <datalist id="program-tags">
+                  {tagSuggestions.map((tag) => (
+                    <option key={tag} value={tag} />
+                  ))}
+                </datalist>
               </label>
               <label>
-                Location
+                Venue
                 <input
                   value={form.location}
                   onChange={(event) =>
                     setForm({ ...form, location: event.target.value })
                   }
+                  placeholder="e.g. Main Hall, Zoom"
+                />
+              </label>
+              <label>
+                Map link (optional)
+                <input
+                  value={form.mapUrl ?? ""}
+                  onChange={(event) =>
+                    setForm({ ...form, mapUrl: event.target.value })
+                  }
+                  placeholder="https://maps.google.com/..."
                 />
               </label>
               <label>
@@ -553,27 +591,20 @@ export default function ProgramsPage() {
               </label>
               <label>
                 Description
-                <textarea
-                  rows={3}
+                <RichTextEditor
                   value={form.description}
-                  onChange={(event) =>
-                    setForm({ ...form, description: event.target.value })
+                  onChange={(value) =>
+                    setForm((prev) => ({ ...prev, description: value }))
                   }
+                  placeholder="Describe the program, include highlights and structure."
                 />
               </label>
               <label>
                 Highlights (comma separated)
                 <input
-                  value={form.highlights.join(", ")}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      highlights: event.target.value
-                        .split(",")
-                        .map((item) => item.trim())
-                        .filter(Boolean),
-                    })
-                  }
+                  value={highlightsInput}
+                  onChange={(event) => setHighlightsInput(event.target.value)}
+                  placeholder="e.g. Guided practice, Breath reset, Closing reflection"
                 />
               </label>
               <label>
