@@ -1,5 +1,7 @@
 .admin {
   min-height: 100dvh;
+  width: 100%;
+  max-width: 100%;
   display: grid;
   grid-template-columns: minmax(220px, 270px) minmax(0, 1fr);
   background: #f3f5f9;
@@ -16,6 +18,8 @@
 .admin__sidebar {
   background: linear-gradient(180deg, #1f2937 0%, #0f172a 100%);
   color: #e5e7eb;
+  min-width: 0;
+  max-width: 100%;
   padding: 28px 20px;
   display: flex;
   flex-direction: column;
@@ -31,6 +35,8 @@
   display: flex;
   gap: 12px;
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .admin__logo-mark {
@@ -53,11 +59,13 @@
 .admin__logo p {
   margin: 0;
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .admin__logo span {
   font-size: 0.8rem;
   color: #9ca3af;
+  overflow-wrap: anywhere;
 }
 
 .admin__nav {
@@ -1073,6 +1081,7 @@
 @media (max-width: 820px) {
   .admin {
     grid-template-columns: 1fr;
+    overflow-x: hidden;
   }
 
   .admin__sidebar {

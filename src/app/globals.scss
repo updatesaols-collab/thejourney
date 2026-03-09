@@ -21,6 +21,12 @@
   --radius-md: 16px;
 }
 
+html {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 *,
 *::before,
 *::after {
@@ -29,12 +35,19 @@
 
 body {
   margin: 0;
+  width: 100%;
+  max-width: 100%;
   min-height: 100dvh;
   background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 70%, #e8edf3 100%);
   color: var(--ink);
   font-family: var(--font-body), "Manrope", sans-serif;
   letter-spacing: -0.01em;
   overflow-x: hidden;
+}
+
+body > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 img {
@@ -2333,6 +2346,8 @@ button {
   align-items: center;
   justify-content: center;
   padding: 24px;
+  overflow-x: hidden;
+  overflow-y: auto;
   z-index: 20;
 }
 
@@ -2358,13 +2373,25 @@ button {
 .modal__content {
   position: relative;
   width: min(100%, 520px);
+  max-width: calc(100vw - 48px);
   max-height: min(90vh, 720px);
+  overflow-x: hidden;
   overflow-y: auto;
   padding: 22px;
   display: grid;
   gap: 18px;
   z-index: 1;
   box-shadow: var(--shadow);
+}
+
+@media (max-width: 520px) {
+  .modal {
+    padding: 12px;
+  }
+
+  .modal__content {
+    max-width: calc(100vw - 24px);
+  }
 }
 
 .modal__header {
