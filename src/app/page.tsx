@@ -149,8 +149,14 @@ export default function Home() {
       return { text: "Good night", tone: "night" as const };
     };
 
-    const sessionRaw =
-      typeof window !== "undefined" ? localStorage.getItem(AUTH_SESSION_KEY) : null;
+    let sessionRaw: string | null = null;
+    if (typeof window !== "undefined") {
+      try {
+        sessionRaw = localStorage.getItem(AUTH_SESSION_KEY);
+      } catch {
+        sessionRaw = null;
+      }
+    }
     let sessionEmail = "";
     if (sessionRaw) {
       try {

@@ -29,12 +29,29 @@ const createSessionId = () => {
   return `session-${Math.random().toString(36).slice(2, 10)}`;
 };
 
+const readSessionStorage = (key: string) => {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const writeSessionStorage = (key: string, value: string) => {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(key, value);
+  } catch {
+    // Ignore blocked storage writes.
+  }
+};
+
 const getOrCreateSessionId = () => {
-  if (typeof window === "undefined") return "server-session";
-  const existing = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
+  const existing = readSessionStorage(SESSION_STORAGE_KEY);
   if (existing) return existing;
   const created = createSessionId();
-  window.sessionStorage.setItem(SESSION_STORAGE_KEY, created);
+  writeSessionStorage(SESSION_STORAGE_KEY, created);
   return created;
 };
 
@@ -64,22 +81,26 @@ const getNodeLabel = (node: HTMLElement) => {
 
 const sendInteraction = (payload: InteractionPayload) => {
   if (typeof window === "undefined") return;
-  const body = JSON.stringify(payload);
+  try {
+    const body = JSON.stringify(payload);
 
-  if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
-    const blob = new Blob([body], { type: "application/json" });
-    const sent = navigator.sendBeacon(TRACK_ENDPOINT, blob);
-    if (sent) return;
+    if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+      const blob = new Blob([body], { type: "application/json" });
+      const sent = navigator.sendBeacon(TRACK_ENDPOINT, blob);
+      if (sent) return;
+    }
+
+    void fetch(TRACK_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+      keepalive: true,
+    }).catch(() => {
+      // Silently skip analytics transport errors.
+    });
+  } catch {
+    // Never let analytics break app rendering.
   }
-
-  void fetch(TRACK_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body,
-    keepalive: true,
-  }).catch(() => {
-    // Silently skip analytics transport errors.
-  });
 };
 
 export default function InteractionTracker() {

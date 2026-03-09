@@ -2,7 +2,12 @@
 
 export const getOrCreateUserId = () => {
   if (typeof window === "undefined") return "server-user";
-  const sessionRaw = localStorage.getItem("journey_auth_session");
+  let sessionRaw: string | null = null;
+  try {
+    sessionRaw = localStorage.getItem("journey_auth_session");
+  } catch {
+    sessionRaw = null;
+  }
   if (sessionRaw) {
     try {
       const session = JSON.parse(sessionRaw) as { email?: string };
@@ -12,12 +17,21 @@ export const getOrCreateUserId = () => {
     } catch {}
   }
   const key = "journey_user_id";
-  const existing = localStorage.getItem(key);
+  let existing: string | null = null;
+  try {
+    existing = localStorage.getItem(key);
+  } catch {
+    existing = null;
+  }
   if (existing) return existing;
   const generated =
     typeof crypto !== "undefined" && "randomUUID" in crypto
       ? crypto.randomUUID()
       : `user-${Math.random().toString(36).slice(2, 10)}`;
-  localStorage.setItem(key, generated);
+  try {
+    localStorage.setItem(key, generated);
+  } catch {
+    // Ignore blocked storage writes and use the generated value in memory.
+  }
   return generated;
 };

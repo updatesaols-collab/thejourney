@@ -30,7 +30,12 @@ export default function TopBar({
   const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
   const [readIds, setReadIds] = useState<string[]>(() => {
     if (typeof window === "undefined") return [];
-    const stored = window.localStorage.getItem("journey_notifications_read");
+    let stored: string | null = null;
+    try {
+      stored = window.localStorage.getItem("journey_notifications_read");
+    } catch {
+      stored = null;
+    }
     if (!stored) return [];
     try {
       const parsed = JSON.parse(stored) as string[];
@@ -62,10 +67,14 @@ export default function TopBar({
       if (prev.includes(id)) return prev;
       const next = [...prev, id];
       if (typeof window !== "undefined") {
-        window.localStorage.setItem(
-          "journey_notifications_read",
-          JSON.stringify(next)
-        );
+        try {
+          window.localStorage.setItem(
+            "journey_notifications_read",
+            JSON.stringify(next)
+          );
+        } catch {
+          // Ignore blocked storage writes.
+        }
       }
       return next;
     });

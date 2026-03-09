@@ -26,7 +26,12 @@ const parseSnapshot = (stored: string | null): AuthSession | null => {
 
 export const readStoredAuthSession = (): AuthSession | null => {
   if (typeof window === "undefined") return null;
-  const stored = window.localStorage.getItem(AUTH_SESSION_KEY);
+  let stored: string | null = null;
+  try {
+    stored = window.localStorage.getItem(AUTH_SESSION_KEY);
+  } catch {
+    stored = null;
+  }
   if (stored === cachedRaw) return cachedSnapshot;
   cachedRaw = stored;
   cachedSnapshot = parseSnapshot(stored);
@@ -43,7 +48,11 @@ const emitSessionChange = () => {
 export const setStoredAuthSession = (session: AuthSession) => {
   if (typeof window === "undefined") return;
   const serialized = JSON.stringify(session);
-  window.localStorage.setItem(AUTH_SESSION_KEY, serialized);
+  try {
+    window.localStorage.setItem(AUTH_SESSION_KEY, serialized);
+  } catch {
+    return;
+  }
   cachedRaw = serialized;
   cachedSnapshot = session;
   emitSessionChange();
@@ -51,7 +60,11 @@ export const setStoredAuthSession = (session: AuthSession) => {
 
 export const clearStoredAuthSession = () => {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(AUTH_SESSION_KEY);
+  try {
+    window.localStorage.removeItem(AUTH_SESSION_KEY);
+  } catch {
+    return;
+  }
   cachedRaw = null;
   cachedSnapshot = null;
   emitSessionChange();
