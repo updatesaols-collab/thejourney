@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import ModalErrorBoundary from "@/components/ModalErrorBoundary";
 import type { ProgramRecord } from "@/lib/types";
 
 type Props = {
@@ -176,28 +177,34 @@ export default function ProgramRegistrationForm({ program }: Props) {
             aria-label="Close status modal"
             onClick={handleFeedbackAction}
           />
-          <div className={`modal__content surface action-feedback action-feedback--${feedback.tone}`}>
-            <div className="action-feedback__icon" aria-hidden="true">
-              {feedback.tone === "success" ? (
-                <CheckCircle2 size={28} />
-              ) : (
-                <AlertTriangle size={28} />
-              )}
+          <ModalErrorBoundary
+            title="Registration status unavailable"
+            onClose={handleFeedbackAction}
+            resetKey={feedback.tone}
+          >
+            <div className={`modal__content surface action-feedback action-feedback--${feedback.tone}`}>
+              <div className="action-feedback__icon" aria-hidden="true">
+                {feedback.tone === "success" ? (
+                  <CheckCircle2 size={28} />
+                ) : (
+                  <AlertTriangle size={28} />
+                )}
+              </div>
+              <h2>
+                {feedback.tone === "success"
+                  ? "Registration successful"
+                  : "Unable to register"}
+              </h2>
+              <p>{feedback.message}</p>
+              <button
+                type="button"
+                className="button button--secondary"
+                onClick={handleFeedbackAction}
+              >
+                {feedback.tone === "success" ? "Go to home" : "Okay"}
+              </button>
             </div>
-            <h2>
-              {feedback.tone === "success"
-                ? "Registration successful"
-                : "Unable to register"}
-            </h2>
-            <p>{feedback.message}</p>
-            <button
-              type="button"
-              className="button button--secondary"
-              onClick={handleFeedbackAction}
-            >
-              {feedback.tone === "success" ? "Go to home" : "Okay"}
-            </button>
-          </div>
+          </ModalErrorBoundary>
         </div>
       )}
     </form>

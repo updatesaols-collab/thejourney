@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
+import ModalErrorBoundary from "@/components/ModalErrorBoundary";
 import RichTextEditor from "@/components/RichTextEditor";
 import TopBar from "@/components/TopBar";
 import { useStoredAuthSession } from "@/lib/clientAuth";
@@ -234,46 +235,52 @@ export default function RitualsPage() {
       {modalOpen && (
         <div className="modal modal--open">
           <button className="modal__backdrop" type="button" onClick={closeModal} />
-          <div className="modal__content surface ritual-modal">
-            <div className="modal__header">
-              <div>
-                <h2>{mode === "add" ? "New ritual" : "Edit ritual"}</h2>
-                <p className="list-meta">
-                  Use headings, notes, bullet points, or checklist items.
-                </p>
+          <ModalErrorBoundary
+            title="Ritual editor unavailable"
+            onClose={closeModal}
+            resetKey={`${mode}-${editingId || "new"}-${modalOpen ? "open" : "closed"}`}
+          >
+            <div className="modal__content surface ritual-modal">
+              <div className="modal__header">
+                <div>
+                  <h2>{mode === "add" ? "New ritual" : "Edit ritual"}</h2>
+                  <p className="list-meta">
+                    Use headings, notes, bullet points, or checklist items.
+                  </p>
+                </div>
+                <button className="modal__close-button" type="button" onClick={closeModal}>
+                  Close
+                </button>
               </div>
-              <button className="modal__close-button" type="button" onClick={closeModal}>
-                Close
-              </button>
+              <form className="modal__form ritual-form" onSubmit={handleSubmit}>
+                <label>
+                  Title
+                  <input
+                    className="text-input"
+                    value={form.title}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, title: event.target.value }))
+                    }
+                    placeholder="Morning breathing ritual"
+                  />
+                </label>
+                <div className="ritual-form__field">
+                  <span>Content</span>
+                  <RichTextEditor
+                    key={editingId || "new-ritual"}
+                    value={form.content}
+                    onChange={(value) => setForm((prev) => ({ ...prev, content: value }))}
+                    placeholder="Write steps, notes, or create a checklist..."
+                    autoFocus
+                  />
+                </div>
+                {pageStatus ? <p className="list-meta">{pageStatus}</p> : null}
+                <button className="button button--primary ritual-form__submit" type="submit">
+                  {mode === "add" ? "Save ritual" : "Update ritual"}
+                </button>
+              </form>
             </div>
-            <form className="modal__form ritual-form" onSubmit={handleSubmit}>
-              <label>
-                Title
-                <input
-                  className="text-input"
-                  value={form.title}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, title: event.target.value }))
-                  }
-                  placeholder="Morning breathing ritual"
-                />
-              </label>
-              <div className="ritual-form__field">
-                <span>Content</span>
-                <RichTextEditor
-                  key={editingId || "new-ritual"}
-                  value={form.content}
-                  onChange={(value) => setForm((prev) => ({ ...prev, content: value }))}
-                  placeholder="Write steps, notes, or create a checklist..."
-                  autoFocus
-                />
-              </div>
-              {pageStatus ? <p className="list-meta">{pageStatus}</p> : null}
-              <button className="button button--primary ritual-form__submit" type="submit">
-                {mode === "add" ? "Save ritual" : "Update ritual"}
-              </button>
-            </form>
-          </div>
+          </ModalErrorBoundary>
         </div>
       )}
     </div>

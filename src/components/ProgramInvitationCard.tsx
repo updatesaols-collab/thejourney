@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CheckCircle2 } from "lucide-react";
+import ModalErrorBoundary from "@/components/ModalErrorBoundary";
 
 type Props = {
   programSlug: string;
@@ -104,63 +105,69 @@ export default function ProgramInvitationCard({ programSlug, programTitle }: Pro
           aria-label="Close invitation form"
           onClick={closeForm}
         />
-        <div className="modal__content surface">
-          <div className="modal__header">
-            <div>
-              <p className="eyebrow">Invite friends</p>
-              <h2>Send invitation</h2>
+        <ModalErrorBoundary
+          title="Invitation form unavailable"
+          onClose={closeForm}
+          resetKey={isFormOpen ? "open" : "closed"}
+        >
+          <div className="modal__content surface">
+            <div className="modal__header">
+              <div>
+                <p className="eyebrow">Invite friends</p>
+                <h2>Send invitation</h2>
+              </div>
+              <button
+                type="button"
+                className="modal__close modal__close-button"
+                onClick={closeForm}
+              >
+                Close
+              </button>
             </div>
-            <button
-              type="button"
-              className="modal__close modal__close-button"
-              onClick={closeForm}
-            >
-              Close
-            </button>
+
+            <form className="modal__form" onSubmit={handleSend}>
+              <label>
+                Your name
+                <input
+                  className="text-input"
+                  type="text"
+                  required
+                  value={form.inviterName}
+                  onChange={(event) => updateField("inviterName", event.target.value)}
+                />
+              </label>
+              <label>
+                Recipient full name
+                <input
+                  className="text-input"
+                  type="text"
+                  required
+                  value={form.recipientFullName}
+                  onChange={(event) => updateField("recipientFullName", event.target.value)}
+                />
+              </label>
+              <label>
+                Recipient email
+                <input
+                  className="text-input"
+                  type="email"
+                  required
+                  value={form.recipientEmail}
+                  onChange={(event) => updateField("recipientEmail", event.target.value)}
+                />
+              </label>
+
+              <button type="submit" className="button button--secondary" disabled={isSending}>
+                {isSending ? "Sending..." : "Send invitation"}
+              </button>
+              {status && (
+                <p className="list-meta" aria-live="polite">
+                  {status}
+                </p>
+              )}
+            </form>
           </div>
-
-          <form className="modal__form" onSubmit={handleSend}>
-            <label>
-              Your name
-              <input
-                className="text-input"
-                type="text"
-                required
-                value={form.inviterName}
-                onChange={(event) => updateField("inviterName", event.target.value)}
-              />
-            </label>
-            <label>
-              Recipient full name
-              <input
-                className="text-input"
-                type="text"
-                required
-                value={form.recipientFullName}
-                onChange={(event) => updateField("recipientFullName", event.target.value)}
-              />
-            </label>
-            <label>
-              Recipient email
-              <input
-                className="text-input"
-                type="email"
-                required
-                value={form.recipientEmail}
-                onChange={(event) => updateField("recipientEmail", event.target.value)}
-              />
-            </label>
-
-            <button type="submit" className="button button--secondary" disabled={isSending}>
-              {isSending ? "Sending..." : "Send invitation"}
-            </button>
-            {status && (
-              <p className="list-meta" aria-live="polite">
-                {status}
-              </p>
-            )}
-          </form>
-        </div>
+        </ModalErrorBoundary>
       </div>
 
       <div
@@ -173,19 +180,25 @@ export default function ProgramInvitationCard({ programSlug, programTitle }: Pro
           aria-label="Close success dialog"
           onClick={closeSuccess}
         />
-        <div className="modal__content surface invite-success">
-          <div className="invite-success__icon" aria-hidden="true">
-            <CheckCircle2 size={28} />
+        <ModalErrorBoundary
+          title="Invitation status unavailable"
+          onClose={closeSuccess}
+          resetKey={isSuccessOpen ? "open" : "closed"}
+        >
+          <div className="modal__content surface invite-success">
+            <div className="invite-success__icon" aria-hidden="true">
+              <CheckCircle2 size={28} />
+            </div>
+            <h2>Invitation sent</h2>
+            <p>
+              {lastRecipient ? `${lastRecipient} has received your invitation.` : "Invitation sent."}
+              {" "}They can register for <strong>{programTitle}</strong> using the email button.
+            </p>
+            <button type="button" className="button button--secondary" onClick={closeSuccess}>
+              Done
+            </button>
           </div>
-          <h2>Invitation sent</h2>
-          <p>
-            {lastRecipient ? `${lastRecipient} has received your invitation.` : "Invitation sent."}
-            {" "}They can register for <strong>{programTitle}</strong> using the email button.
-          </p>
-          <button type="button" className="button button--secondary" onClick={closeSuccess}>
-            Done
-          </button>
-        </div>
+        </ModalErrorBoundary>
       </div>
     </>
   );

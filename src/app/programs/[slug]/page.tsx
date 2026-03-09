@@ -11,6 +11,7 @@ import {
   UserRound,
 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
+import ModalErrorBoundary from "@/components/ModalErrorBoundary";
 import TopBar from "@/components/TopBar";
 import { notFound } from "next/navigation";
 import { getProgramBySlug } from "@/lib/programs";
@@ -221,18 +222,20 @@ export default async function ProgramPage({ params }: ProgramPageProps) {
 
       <div className="modal" id="register-modal" aria-hidden="true">
         <div className="modal__backdrop" />
-        <div className="modal__content surface">
-          <div className="modal__header">
-            <div>
-              <p className="eyebrow">Register now</p>
-              <h2>{program.title}</h2>
+        <ModalErrorBoundary title="Registration form unavailable" resetKey={program.slug}>
+          <div className="modal__content surface">
+            <div className="modal__header">
+              <div>
+                <p className="eyebrow">Register now</p>
+                <h2>{program.title}</h2>
+              </div>
+              <a className="modal__close" href="#" aria-label="Close form">
+                Close
+              </a>
             </div>
-            <a className="modal__close" href="#" aria-label="Close form">
-              Close
-            </a>
+            <ProgramRegistrationForm program={program} />
           </div>
-          <ProgramRegistrationForm program={program} />
-        </div>
+        </ModalErrorBoundary>
       </div>
     </div>
   );
