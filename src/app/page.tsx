@@ -241,7 +241,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!faqs.length) {
-      setOpenFaqId("");
+      setOpenFaqId((current) => current || "home-seo");
       return;
     }
     setOpenFaqId((current) => current || faqs[0].id);
@@ -329,7 +329,7 @@ export default function Home() {
   };
 
   return (
-    <div className="page">
+    <div className="page home-page">
       <main className="phone">
         <div className="content">
           <TopBar title="The Art of Living" subtitle="Your journey" />
@@ -398,9 +398,14 @@ export default function Home() {
                       className={`home-banner home-banner--image surface is-link ${
                         activeHeroIndex === index ? "is-active" : ""
                       }`}
-                      style={{ backgroundImage: `url(${slide.imageUrl})` }}
                       aria-hidden={activeHeroIndex !== index}
                     >
+                      <img
+                        className="home-banner__image-media"
+                        src={slide.imageUrl}
+                        alt={`Journey hero slide ${index + 1}`}
+                        loading={index === 0 ? "eager" : "lazy"}
+                      />
                       <span
                         className={`home-banner__greeting home-banner__greeting--${greetingTone}`}
                       >
@@ -413,9 +418,14 @@ export default function Home() {
                       className={`home-banner home-banner--image surface ${
                         activeHeroIndex === index ? "is-active" : ""
                       }`}
-                      style={{ backgroundImage: `url(${slide.imageUrl})` }}
                       aria-hidden={activeHeroIndex !== index}
                     >
+                      <img
+                        className="home-banner__image-media"
+                        src={slide.imageUrl}
+                        alt={`Journey hero slide ${index + 1}`}
+                        loading={index === 0 ? "eager" : "lazy"}
+                      />
                       <span
                         className={`home-banner__greeting home-banner__greeting--${greetingTone}`}
                       >
@@ -442,6 +452,53 @@ export default function Home() {
               )}
             </section>
           )}
+
+          <section className="section">
+            <div className="section__head">
+              <h2>Upcoming programs</h2>
+              <Link className="link" href="/explore">
+                View all
+              </Link>
+            </div>
+            <div className="popular-grid">
+              {programs.map((program) => {
+                const Icon = programIcon(program.tag);
+                const venue = program.location || program.venue;
+                return (
+                  <article
+                    key={program.slug}
+                    className="popular-card popular-card--row surface"
+                  >
+                    <div className="popular-card__thumb">
+                      {program.imageUrl ? (
+                        <img src={program.imageUrl} alt={program.title} loading="lazy" />
+                      ) : (
+                        <span className="popular-card__thumb-icon">
+                          <Icon size={22} />
+                        </span>
+                      )}
+                    </div>
+                    <div className="popular-card__content">
+                      <p className="popular-card__title">{program.title}</p>
+                      <div className="popular-card__meta">
+                        <span>{program.date}</span>
+                        <span>·</span>
+                        <span>{program.time}</span>
+                        <span>·</span>
+                        <span>{program.duration}</span>
+                      </div>
+                      {venue && <p className="popular-card__venue">{venue}</p>}
+                    </div>
+                    <div className="popular-card__aside">
+                      <Link className="mini-button" href={`/programs/${program.slug}`}>
+                        View details
+                      </Link>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
 
           <section className="section">
             <div className="section__head">
@@ -479,52 +536,6 @@ export default function Home() {
 
           <section className="section">
             <div className="section__head">
-              <h2>Upcoming programs</h2>
-              <Link className="link" href="/explore">
-                View all
-              </Link>
-            </div>
-            <div className="popular-grid">
-              {programs.map((program) => {
-                const Icon = programIcon(program.tag);
-                const venue = program.location || program.venue;
-                return (
-                  <article
-                    key={program.slug}
-                    className="popular-card popular-card--row surface"
-                  >
-                    <div className="popular-card__thumb">
-                      {program.imageUrl ? (
-                        <img src={program.imageUrl} alt={program.title} loading="lazy" />
-                      ) : (
-                        <span className="popular-card__thumb-icon">
-                          <Icon size={22} />
-                        </span>
-                      )}
-                    </div>
-                    <div className="popular-card__content">
-                      <p className="popular-card__title">{program.title}</p>
-                      <div className="popular-card__meta">
-                        <span>{program.date}</span>
-                        <span>·</span>
-                        <span>{program.time}</span>
-                      </div>
-                      {venue && <p className="popular-card__venue">{venue}</p>}
-                    </div>
-                    <div className="popular-card__aside">
-                      <span className="popular-card__duration">{program.duration}</span>
-                      <Link className="mini-button" href={`/programs/${program.slug}`}>
-                        View details
-                      </Link>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="section">
-            <div className="section__head">
               <h2>I want to..</h2>
             </div>
             <div className="intent-pills">
@@ -555,9 +566,7 @@ export default function Home() {
           </section>
 
           <section className="section">
-            <div className="section__head">
-              <h2>Reflection</h2>
-            </div>
+
             <article className="surface journal">
               {showShareGate && (
                 <div className="journal__overlay" role="status" aria-live="polite">
@@ -672,9 +681,7 @@ export default function Home() {
           </section>
 
           <section className="section">
-            <div className="section__head">
-              <h2>Reviews</h2>
-            </div>
+
             {activeReview ? (
               <article className="surface review-slider home-accent-card home-accent-card--review">
                 <div className="review-slider__header">
@@ -733,9 +740,7 @@ export default function Home() {
           </section>
 
           <section className="section">
-            <div className="section__head">
-              <h2>FAQs</h2>
-            </div>
+
             <div className="faq-list">
               {faqs.length ? (
                 faqs.map((item) => {
@@ -770,24 +775,48 @@ export default function Home() {
                   <p>No FAQs published yet.</p>
                 </article>
               )}
-            </div>
-          </section>
 
-          <section className="home-seo-intro home-seo-intro--home surface">
-            <p className="home-seo-intro__eyebrow">Journey - The Art of Living Nepal</p>
-            <h1>Meditation, Yoga, Spirituality, Wellness and Ayurveda in Kathmandu</h1>
-            <p className="home-seo-intro__text">
-              Official Art of Living Nepal portal for guided meditation, Sudarshan Kriya,
-              breathwork, yoga and holistic wellbeing programs.
-            </p>
-            <address className="home-seo-intro__contact" aria-label="Contact details">
-              <span>{SEO_ADDRESS}</span>
-              <a href={`mailto:${SEO_EMAIL}`}>{SEO_EMAIL}</a>
-              <a href="tel:+9779810553757">{SEO_PHONE}</a>
-              <a href={SEO_WHATSAPP_URL} target="_blank" rel="noreferrer">
-                WhatsApp preferred
-              </a>
-            </address>
+              <article
+                className={`surface faq-item home-accent-card home-accent-card--faq ${
+                  openFaqId === "home-seo" ? "is-open" : ""
+                }`}
+              >
+                <button
+                  type="button"
+                  className="faq-item__toggle"
+                  onClick={() => setOpenFaqId((prev) => (prev === "home-seo" ? "" : "home-seo"))}
+                  aria-expanded={openFaqId === "home-seo"}
+                >
+                  <span>Journey - The Art of Living Nepal</span>
+                  <ChevronDown size={18} />
+                </button>
+                {openFaqId === "home-seo" && (
+                  <div className="faq-item__body">
+                    <p className="home-seo-intro__eyebrow">
+                      Journey - The Art of Living Nepal
+                    </p>
+                    <h1>
+                      Meditation, Yoga, Spirituality, Wellness and Ayurveda in Kathmandu
+                    </h1>
+                    <p className="home-seo-intro__text">
+                      Official Art of Living Nepal portal for guided meditation,
+                      Sudarshan Kriya, breathwork, yoga and holistic wellbeing programs.
+                    </p>
+                    <address
+                      className="home-seo-intro__contact"
+                      aria-label="Contact details"
+                    >
+                      <span>{SEO_ADDRESS}</span>
+                      <a href={`mailto:${SEO_EMAIL}`}>{SEO_EMAIL}</a>
+                      <a href="tel:+9779810553757">{SEO_PHONE}</a>
+                      <a href={SEO_WHATSAPP_URL} target="_blank" rel="noreferrer">
+                        WhatsApp preferred
+                      </a>
+                    </address>
+                  </div>
+                )}
+              </article>
+            </div>
           </section>
         </div>
 

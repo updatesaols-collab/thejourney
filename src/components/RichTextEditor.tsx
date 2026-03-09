@@ -7,11 +7,13 @@ import Placeholder from "@tiptap/extension-placeholder";
 import Link from "@tiptap/extension-link";
 import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
+import { TaskItem, TaskList } from "@tiptap/extension-list";
 import {
   AlignCenter,
   AlignLeft,
   AlignRight,
   Bold,
+  CheckSquare,
   Eraser,
   Italic,
   Link2,
@@ -30,6 +32,7 @@ type RichTextEditorProps = {
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
+  autoFocus?: boolean;
 };
 
 const sanitizeOutput = (html: string, text: string) => {
@@ -44,6 +47,7 @@ export default function RichTextEditor({
   onChange,
   placeholder = "Write something helpful...",
   className,
+  autoFocus = false,
 }: RichTextEditorProps) {
   const editor = useEditor({
     immediatelyRender: false,
@@ -58,6 +62,10 @@ export default function RichTextEditor({
         linkOnPaste: true,
       }),
       Underline,
+      TaskList,
+      TaskItem.configure({
+        nested: true,
+      }),
       TextAlign.configure({
         types: ["heading", "paragraph"],
       }),
@@ -66,6 +74,7 @@ export default function RichTextEditor({
     editorProps: {
       attributes: {
         class: "richtext__content",
+        spellcheck: "true",
       },
     },
     onUpdate: ({ editor: currentEditor }) => {
@@ -89,6 +98,14 @@ export default function RichTextEditor({
       editor.commands.setContent(value, { emitUpdate: false });
     }
   }, [editor, value]);
+
+  useEffect(() => {
+    if (!editor || !autoFocus) return;
+    const timer = setTimeout(() => {
+      editor.commands.focus("end");
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [editor, autoFocus]);
 
   if (!editor) {
     return <div className={`richtext ${className ?? ""}`} />;
@@ -216,6 +233,16 @@ export default function RichTextEditor({
           aria-label="Ordered list"
         >
           <ListOrdered size={16} />
+        </button>
+        <button
+          type="button"
+          className={`richtext__button ${
+            editor.isActive("taskList") ? "active" : ""
+          }`}
+          onClick={() => editor.chain().focus().toggleTaskList().run()}
+          aria-label="Checklist"
+        >
+          <CheckSquare size={16} />
         </button>
         <button
           type="button"

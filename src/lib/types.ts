@@ -135,6 +135,17 @@ export type LibraryRecord = {
   updatedAt?: string;
 };
 
+export type RitualRecord = {
+  id: string;
+  title: string;
+  content: string;
+  preview: string;
+  userId: string;
+  userName?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type RegistrationStatus = "Pending" | "Confirmed" | "Waitlist";
 
 export type RegistrationRecord = {

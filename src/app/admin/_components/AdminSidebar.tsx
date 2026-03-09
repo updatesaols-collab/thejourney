@@ -16,6 +16,7 @@ import {
   Star,
   CircleHelp,
   Settings,
+  Sparkles,
   UserRound,
 } from "lucide-react";
 
@@ -27,6 +28,7 @@ const NAV_ITEMS = [
   { href: "/admin/hero-slides", label: "Hero Slides", icon: Images },
   { href: "/admin/programs", label: "Programs", icon: CalendarDays },
   { href: "/admin/library", label: "Library", icon: BookOpen },
+  { href: "/admin/rituals", label: "Rituals", icon: Sparkles },
   { href: "/admin/reviews", label: "Reviews", icon: Star },
   { href: "/admin/faqs", label: "FAQs", icon: CircleHelp },
   { href: "/admin/notifications", label: "Notifications", icon: Bell },

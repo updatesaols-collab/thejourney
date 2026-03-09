@@ -20,10 +20,23 @@ export const metadata: Metadata = {
 
 const TONE_OPTIONS = new Set<LibraryTone>(["sleep", "anxiety", "morning", "relief"]);
 
+const LIBRARY_CARD_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  timeZone: "UTC",
+});
+
 const sortByOrder = (items: LibraryRecord[]) =>
   [...items].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
 const toMarkup = (value: string) => ({ __html: sanitizeRichHtml(value) });
+
+const toPlainTextPreview = (value?: string) =>
+  (value ?? "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
 /**
  * Normalizes date output for article chips/cards in the UI.
@@ -32,11 +45,7 @@ const formatDate = (value?: string) => {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  return LIBRARY_CARD_DATE_FORMATTER.format(date);
 };
 
 type LibraryPageProps = {
@@ -126,10 +135,9 @@ export default async function LibraryPage({ searchParams }: LibraryPageProps) {
                         )}
                         <p className="library-card__title">{item.title}</p>
                         {item.description && (
-                          <div
-                            className="library-card__meta richtext-display"
-                            dangerouslySetInnerHTML={toMarkup(item.description)}
-                          />
+                          <p className="library-card__meta">
+                            {toPlainTextPreview(item.description)}
+                          </p>
                         )}
                       </div>
                       <div className="library-card__art" aria-hidden="true" />
